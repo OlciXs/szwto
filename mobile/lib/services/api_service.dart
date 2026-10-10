@@ -23,7 +23,6 @@ class ApiService {
 
   static const _tokenKey = 'access_token';
   static const _emailKey = 'user_email';
-  static const _apiUrlKey = 'api_base_url';
   static const _timeout = Duration(seconds: 15);
 
   String? _token;
@@ -42,18 +41,8 @@ class ApiService {
 
   Future<void> loadSession() async {
     final prefs = await SharedPreferences.getInstance();
-    final savedApiUrl = prefs.getString(_apiUrlKey);
-    if (savedApiUrl != null && savedApiUrl.isNotEmpty) {
-      AppConfig.setApiBaseUrl(savedApiUrl);
-    }
     _token = prefs.getString(_tokenKey);
     email = prefs.getString(_emailKey);
-  }
-
-  Future<void> setApiBaseUrl(String value) async {
-    AppConfig.setApiBaseUrl(value);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_apiUrlKey, AppConfig.apiBaseUrl);
   }
 
   Future<void> _saveSession(String token, String userEmail) async {
