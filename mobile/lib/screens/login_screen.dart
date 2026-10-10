@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../config.dart';
 import '../services/api_service.dart';
 import 'map_screen.dart';
 
@@ -14,6 +15,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _apiUrlController = TextEditingController();
 
   bool _registerMode = false;
   bool _busy = false;
@@ -21,9 +23,16 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _error;
 
   @override
+  void initState() {
+    super.initState();
+    _apiUrlController.text = AppConfig.apiBaseUrl;
+  }
+
+  @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _apiUrlController.dispose();
     super.dispose();
   }
 
@@ -37,6 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       final api = ApiService.instance;
+      await api.setApiBaseUrl(_apiUrlController.text);
       if (_registerMode) {
         await api.register(_emailController.text, _passwordController.text);
       } else {
@@ -93,6 +103,25 @@ class _LoginScreenState extends State<LoginScreen> {
                       style: theme.textTheme.bodyMedium,
                     ),
                     const SizedBox(height: 32),
+                    TextFormField(
+                      controller: _apiUrlController,
+                      keyboardType: TextInputType.url,
+                      decoration: const InputDecoration(
+                        labelText: 'Adres serwera',
+                        hintText: 'http://192.168.1.10:3000',
+                        prefixIcon: Icon(Icons.wifi),
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (value) {
+                        try {
+                          AppConfig.normalizeApiBaseUrl(value ?? '');
+                          return null;
+                        } on FormatException catch (e) {
+                          return e.message;
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 16),
                     TextFormField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,

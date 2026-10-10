@@ -6,7 +6,14 @@ import 'services/api_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await ApiService.instance.loadSession();
+  
+  // Próba wczytania sesji przed uruchomieniem aplikacji
+  try {
+    await ApiService.instance.loadSession();
+  } catch (e) {
+    debugPrint('Błąd ładowania sesji: $e');
+  }
+
   runApp(const ZabytkiApp());
 }
 
@@ -22,6 +29,7 @@ class ZabytkiApp extends StatelessWidget {
         colorSchemeSeed: Colors.teal,
         useMaterial3: true,
       ),
+      // Dynamiczne przełączanie ekranu w zależności od stanu zalogowania
       home: ApiService.instance.isLoggedIn
           ? const MapScreen()
           : const LoginScreen(),
