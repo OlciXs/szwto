@@ -1,0 +1,22 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Flutter – lokalny backend (localhost:3000)",
+      "type": "dart",
+      "request": "launch",
+      "cwd": "mobile",
+      "program": "lib/main.dart",
+      "deviceId": "chrome",
+      "args": ["--dart-define=API_URL=http://localhost:3000"]
+    },
+    {
+      "name": "Flutter – produkcja (Render)",
+      "type": "dart",
+      "request": "launch",
+      "cwd": "mobile",
+      "program": "lib/main.dart",
+      "deviceId": "chrome"
+    }
+  ]
+}

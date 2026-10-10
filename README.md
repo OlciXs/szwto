@@ -1,58 +1,70 @@
 # Odkrywca Zabytków
 
-Prosta aplikacja mobilna do odkrywania i odznaczania zabytków w Polsce.
-Zabytek można odznaczyć tylko wtedy, gdy użytkownik jest od niego oddalony o **maksymalnie 50 metrów** (geofencing sprawdzany po stronie backendu).
+Aplikacja do odkrywania i kolekcjonowania zabytków **Wrocławia** (~1400 obiektów z Wikidata, ~1000 ze zdjęciem).
+Zabytek można odznaczyć tylko na miejscu – promień zależy od obiektu (40–400 m, geofencing sprawdzany po stronie backendu).
 
 | Warstwa | Technologia |
 |---|---|
 | Frontend | Flutter (Dart), `flutter_map` + OpenStreetMap, `geolocator` |
-| Backend | NestJS (TypeScript), JWT, `class-validator` |
-| Baza danych | lokalny PostgreSQL + Prisma ORM (bez Dockera) |
+| Backend | NestJS (TypeScript), JWT, `class-validator`, `@nestjs/event-emitter` |
+| Baza danych | PostgreSQL (lokalnie lub Neon) + Prisma ORM |
+| Dane | Wikidata (CC0), Wikipedia (CC BY-SA), zdjęcia Wikimedia Commons |
+
+📐 **Architektura i podział pracy na tory:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+📄 **Kontrakt API:** [docs/API.md](docs/API.md)
+
+## Szybki start (backend)
+
+```bash
+cd backend
+npm install
+npx prisma generate
+npx prisma migrate deploy   # tworzy/aktualizuje tabele
+npm run seed                # ładuje zabytki ze snapshotu prisma/data/monuments.wroclaw.json
+npm run start:dev           # http://localhost:3000
+```
+
+W drugim terminalu: `npm run smoke` – automatyczny test całego API (✅/❌).
+
+| Komenda | Co robi |
+|---|---|
+| `npm run import:wroclaw` | pobiera świeże dane z Wikidata/Wikipedii i nadpisuje snapshot (~1 min) |
+| `npm run seed` | ładuje snapshot do bazy (idempotentne, wizyty graczy zostają) |
+| `npm run smoke` | smoke testy API (`-- --url https://szwto.onrender.com` dla produkcji) |
+
+## Szybki start (aplikacja)
+
+```bash
+cd mobile
+flutter pub get
+flutter run -d chrome --dart-define=API_URL=http://localhost:3000
+```
+
+Bez `--dart-define` aplikacja łączy się z produkcją (`https://szwto.onrender.com`).
 
 ## Struktura projektu
 
 ```
-zabytki/
-├── backend/
-│   ├── .env                      # DATABASE_URL, JWT_SECRET, PORT
-│   ├── package.json
-│   ├── prisma/
-│   │   ├── schema.prisma         # User, Monument, UserVisited
-│   │   └── seed.ts               # przykładowe zabytki w Polsce
-│   └── src/
-│       ├── main.ts
-│       ├── app.module.ts
-│       ├── prisma/               # PrismaService (moduł globalny)
-│       ├── auth/                 # rejestracja, logowanie, JWT
-│       ├── common/geo.util.ts    # wzór haversine
-│       └── monuments/            # GET /monuments, POST /monuments/:id/visit
-└── mobile/
-    ├── pubspec.yaml
-    ├── lib/
-    │   ├── main.dart
-    │   ├── config.dart           # adres API
-    │   ├── models/monument.dart
-    │   ├── services/api_service.dart
-    │   └── screens/
-    │       ├── login_screen.dart
-    │       └── map_screen.dart   # mapa, pinezki, BottomSheet
-    └── test/widget_test.dart
+backend/
+├── prisma/schema.prisma          # schemat dla wszystkich funkcji (#1–#6)
+├── prisma/data/                  # snapshot zabytków (JSON w repo)
+├── scripts/import/               # Wikidata -> wzbogacenie -> snapshot
+├── scripts/smoke/                # smoke testy (checks/NN-*.ts – każdy tor swój plik)
+└── src/
+    ├── auth/  prisma/  common/   # wspólne
+    ├── events/                   # zdarzenie monument.visited (nagrody za wizytę)
+    ├── monuments/  visits/       # tor A
+    ├── progression/  achievements/   # tor B
+    ├── users/  showcase/  comments/  # tor D
+    ├── game/                     # tor E
+    └── profile/
+mobile/lib/
+├── main.dart  app_shell.dart     # trasy + dolna nawigacja
+├── core/                         # api_client, config, location, modele wspólne, widżety
+└── features/                     # auth, map, monuments, comments, profile, collection, game
 ```
 
-## API
-
-`GET http://localhost:3000/` returns the backend status:
-
-```json
-{ "name": "zabytki-backend", "status": "ok" }
-```
-
-| Metoda | Ścieżka | Opis |
-|---|---|---|
-| POST | `/auth/register` | `{ "email", "password" }` → `{ accessToken, user }` |
-| POST | `/auth/login` | `{ "email", "password" }` → `{ accessToken, user }` |
-| GET | `/monuments` | lista zabytków + pole `visited` dla zalogowanego użytkownika (wymaga `Authorization: Bearer <token>`) |
-| POST | `/monuments/:id/visit` | `{ "latitude": 51.1, "longitude": 17.0 }` → sukces, gdy odległość ≤ 50 m, inaczej `400 "Za daleko od zabytku"` |
+Pełna lista endpointów: [docs/API.md](docs/API.md).
 
 ---
 
@@ -114,16 +126,19 @@ cd zabytki/backend
    JWT_SECRET="zmien-mnie-na-dlugi-losowy-sekret"
    JWT_EXPIRES_IN="7d"
    PORT=3000
+   # adres bez poolera – potrzebny do migracji; bez poolera = to samo co DATABASE_URL
+   DIRECT_URL="postgresql://postgres:haslo@localhost:5432/zabytki_db?schema=public"
    ```
-2. Zainstaluj zależności (to również wygeneruje klienta Prisma):
+2. Zainstaluj zależności i wygeneruj klienta Prisma:
    ```bash
    npm install
+   npx prisma generate
    ```
 3. Utwórz tabele w bazie (migracja):
    ```bash
-   npx prisma migrate dev --name init
+   npx prisma migrate deploy
    ```
-4. Załaduj przykładowe zabytki (skrypt można uruchamiać wielokrotnie):
+4. Załaduj zabytki Wrocławia ze snapshotu (skrypt można uruchamiać wielokrotnie):
    ```bash
    npm run seed
    ```
@@ -133,30 +148,15 @@ cd zabytki/backend
    ```
    Backend nasłuchuje na `http://localhost:3000`.
 
-### Szybki test API w terminalu (opcjonalnie)
+### Test API (zalecane)
+
+Przy działającym backendzie, w drugim terminalu:
 
 ```bash
-# rejestracja
-curl -X POST http://localhost:3000/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@example.com","password":"123456"}'
-
-# skopiuj accessToken z odpowiedzi
-export TOKEN="wklej_token_tutaj"
-
-# lista zabytków
-curl http://localhost:3000/monuments -H "Authorization: Bearer $TOKEN"
-
-# odznaczenie Wawelu (id 1) z miejsca oddalonego o kilkadziesiąt kilometrów -> 400 "Za daleko od zabytku"
-curl -X POST http://localhost:3000/monuments/1/visit \
-  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"latitude":51.1,"longitude":17.0}'
-
-# odznaczenie Wawelu ze współrzędnych zabytku -> sukces
-curl -X POST http://localhost:3000/monuments/1/visit \
-  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"latitude":50.0540,"longitude":19.9354}'
+npm run smoke
 ```
+
+Skrypt zakłada konto testowe, pobiera zabytki, sprawdza geofencing, wizytę, XP i profil – wypisuje ✅/❌ dla każdego kroku.
 
 ## Krok 3. Aplikacja Flutter
 
@@ -187,7 +187,8 @@ Backend musi działać w osobnym terminalu:
 ```bash
 cd zabytki/backend
 npm install
-npx prisma migrate dev
+npx prisma generate
+npx prisma migrate deploy
 npm run seed
 npm run start:dev
 ```
@@ -273,9 +274,9 @@ flutter run --dart-define=API_URL=http://192.168.0.15:3000
 
 ### Jak przetestować odznaczanie zabytku bez podróży
 
-- **Emulator Androida:** `…` (Extended controls) → *Location* → wpisz współrzędne zabytku, np. Wawel `50.0540, 19.9354` → *Set location*.
+- **Emulator Androida:** `…` (Extended controls) → *Location* → wpisz współrzędne zabytku, np. Ratusz we Wrocławiu `51.1096, 17.0318` → *Set location*.
 - **Symulator iOS:** menu *Features* → *Location* → *Custom Location…* i wpisz współrzędne.
-- Następnie dotknij pinezki zabytku i naciśnij **„Oznacz jako odwiedzony”**. Pinezka zmieni kolor z szarego na zielony.
+- Następnie dotknij pinezki zabytku i naciśnij **„Oznacz jako odwiedzony”**. Pinezka (kolor = rzadkość) zmieni się na zieloną z ptaszkiem.
 - Z dowolnego innego miejsca zobaczysz komunikat **„Za daleko od zabytku”**.
 
 ## Rozwiązywanie problemów

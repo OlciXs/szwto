@@ -1,6 +1,10 @@
+import '../../../core/models/monument_category.dart';
+import '../../../core/models/rarity.dart';
+
 class UserProfile {
   final int id;
   final String email;
+  final String displayName;
   final DateTime createdAt;
   final int visitedCount;
   final int totalMonuments;
@@ -9,6 +13,7 @@ class UserProfile {
   UserProfile({
     required this.id,
     required this.email,
+    required this.displayName,
     required this.createdAt,
     required this.visitedCount,
     required this.totalMonuments,
@@ -19,6 +24,7 @@ class UserProfile {
     return UserProfile(
       id: json['id'] as int,
       email: json['email'] as String,
+      displayName: json['displayName'] as String? ?? '',
       createdAt: DateTime.parse(json['createdAt'] as String).toLocal(),
       visitedCount: json['visitedCount'] as int,
       totalMonuments: json['totalMonuments'] as int,
@@ -35,27 +41,30 @@ class UserProfile {
 class RecentVisit {
   final int monumentId;
   final String monumentName;
-  final String monumentDescription;
-  final double latitude;
-  final double longitude;
+  final MonumentCategory category;
+  final Rarity rarity;
+  final String? thumbUrl;
+  final int xpEarned;
   final DateTime visitedAt;
 
   RecentVisit({
     required this.monumentId,
     required this.monumentName,
-    required this.monumentDescription,
-    required this.latitude,
-    required this.longitude,
+    required this.category,
+    required this.rarity,
+    required this.xpEarned,
     required this.visitedAt,
+    this.thumbUrl,
   });
 
   factory RecentVisit.fromJson(Map<String, dynamic> json) {
     return RecentVisit(
       monumentId: json['monumentId'] as int,
       monumentName: json['monumentName'] as String,
-      monumentDescription: json['monumentDescription'] as String,
-      latitude: (json['latitude'] as num).toDouble(),
-      longitude: (json['longitude'] as num).toDouble(),
+      category: MonumentCategory.fromApi(json['category'] as String?),
+      rarity: Rarity.fromApi(json['rarity'] as String?),
+      thumbUrl: json['thumbUrl'] as String?,
+      xpEarned: json['xpEarned'] as int? ?? 0,
       visitedAt: DateTime.parse(json['visitedAt'] as String).toLocal(),
     );
   }

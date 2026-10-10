@@ -1,67 +1,37 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
-import { haversineDistanceMeters } from '../common/geo.util';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { VisitDto } from './dto/visit.dto';
-
-/** Maksymalna odległość użytkownika od zabytku, przy której można go odznaczyć. */
-export const VISIT_RADIUS_METERS = 50;
+import { MonumentsQueryDto } from './dto/monuments-query.dto';
+import { toMonumentDetails, toMonumentListItem } from './monument.mapper';
 
 @Injectable()
 export class MonumentsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAllForUser(userId: number) {
+  async findAllForUser(userId: number, query: MonumentsQueryDto) {
     const monuments = await this.prisma.monument.findMany({
+      where: { category: query.category, rarity: query.rarity },
       orderBy: { id: 'asc' },
-      include: { visitedBy: { where: { userId } } },
+      include: { visitedBy: { where: { userId }, select: { visitedAt: true } } },
     });
 
-    return monuments.map((monument) => ({
-      id: monument.id,
-      name: monument.name,
-      description: monument.description,
-      latitude: monument.latitude,
-      longitude: monument.longitude,
-      visited: monument.visitedBy.length > 0,
-      visitedAt: monument.visitedBy[0]?.visitedAt ?? null,
-    }));
+    return monuments.map(({ visitedBy, ...monument }) =>
+      toMonumentListItem(monument, visitedBy[0] ?? null),
+    );
   }
 
-  async visit(userId: number, monumentId: number, dto: VisitDto) {
+  async findOneForUser(userId: number, id: number) {
     const monument = await this.prisma.monument.findUnique({
-      where: { id: monumentId },
+      where: { id },
+      include: { visitedBy: { where: { userId }, select: { visitedAt: true } } },
     });
     if (!monument) {
       throw new NotFoundException('Nie znaleziono zabytku');
     }
 
-    const distance = haversineDistanceMeters(
-      dto.latitude,
-      dto.longitude,
-      monument.latitude,
-      monument.longitude,
-    );
-
-    if (distance > VISIT_RADIUS_METERS) {
-      throw new BadRequestException('Za daleko od zabytku');
-    }
-
-    // upsert: ponowne odwiedzenie tego samego zabytku nie tworzy duplikatu
-    const record = await this.prisma.userVisited.upsert({
-      where: { userId_monumentId: { userId, monumentId } },
-      update: {},
-      create: { userId, monumentId },
+    const visitorsCount = await this.prisma.userVisited.count({
+      where: { monumentId: id },
     });
-
-    return {
-      success: true,
-      message: `Zabytek „${monument.name}” został odznaczony!`,
-      distanceMeters: Math.round(distance * 10) / 10,
-      visitedAt: record.visitedAt,
-    };
+    const { visitedBy, ...rest } = monument;
+    return toMonumentDetails(rest, visitedBy[0] ?? null, visitorsCount);
   }
 }

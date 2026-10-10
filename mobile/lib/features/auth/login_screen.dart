@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 
-import '../services/api_service.dart';
-import 'map_screen.dart';
+import '../../core/api_client.dart';
+import '../../core/config.dart';
+import '../../core/routes.dart';
+import 'auth_api.dart';
+
+final _displayNamePattern = RegExp(r'^[\p{L}\d_.-]{3,24}$', unicode: true);
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -14,6 +18,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _displayNameController = TextEditingController();
 
   bool _registerMode = false;
   bool _busy = false;
@@ -21,14 +26,10 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _error;
 
   @override
-  void initState() {
-    super.initState();
-  }
-
-  @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _displayNameController.dispose();
     super.dispose();
   }
 
@@ -41,20 +42,27 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      final api = ApiService.instance;
+      final api = AuthApi.instance;
       if (_registerMode) {
-        await api.register(_emailController.text, _passwordController.text);
+        await api.register(
+          _emailController.text,
+          _passwordController.text,
+          displayName: _displayNameController.text,
+        );
       } else {
         await api.login(_emailController.text, _passwordController.text);
       }
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const MapScreen()),
-      );
+      Navigator.of(context)
+          .pushNamedAndRemoveUntil(AppRoutes.home, (_) => false);
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
-    } catch (_) {
-      if (mounted) setState(() => _error = 'Nieoczekiwany błąd.');
+    } catch (e) {
+      debugPrint('Logowanie – nieoczekiwany błąd: $e');
+      if (mounted) {
+        setState(() => _error =
+            'Nieoczekiwany błąd ($e). Czy backend pod ${AppConfig.apiBaseUrl} ma aktualną wersję?');
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -92,7 +100,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 8),
                     Text(
                       _registerMode
-                          ? 'Załóż konto i zacznij zbierać zabytki'
+                          ? 'Załóż konto i zacznij zbierać zabytki Wrocławia'
                           : 'Zaloguj się, aby kontynuować',
                       textAlign: TextAlign.center,
                       style: theme.textTheme.bodyMedium,
@@ -115,6 +123,27 @@ class _LoginScreenState extends State<LoginScreen> {
                         return null;
                       },
                     ),
+                    if (_registerMode) ...[
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _displayNameController,
+                        autofillHints: const [AutofillHints.nickname],
+                        decoration: const InputDecoration(
+                          labelText: 'Nazwa gracza (opcjonalnie)',
+                          helperText: 'Widoczna dla innych graczy zamiast e-maila',
+                          prefixIcon: Icon(Icons.badge_outlined),
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) {
+                          final text = value?.trim() ?? '';
+                          if (text.isNotEmpty &&
+                              !_displayNamePattern.hasMatch(text)) {
+                            return '3–24 znaki: litery, cyfry, _ . -';
+                          }
+                          return null;
+                        },
+                      ),
+                    ],
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: _passwordController,

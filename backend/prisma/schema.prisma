@@ -1,38 +1,189 @@
+// Schemat zawiera tabele dla WSZYSTKICH zaplanowanych funkcji (#1-#6),
+// żeby zespół mógł pracować równolegle bez konfliktów w migracjach.
+// Nowe kolumny/tabele dodawaj tylko po uzgodnieniu z zespołem.
+
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // Migracje nie działają przez pooler (np. Neon) – potrzebny adres bezpośredni.
+  // Bez poolera ustaw DIRECT_URL na tę samą wartość co DATABASE_URL.
+  directUrl = env("DIRECT_URL")
 }
+
+// ---------- Słowniki ----------
+
+enum MonumentSource {
+  WIKIDATA
+  OSM
+  MANUAL
+}
+
+enum MonumentCategory {
+  KAMIENICA // kamienice i domy
+  PALAC // pałace, wille, zamki
+  SAKRALNY // kościoły, kaplice, klasztory, synagogi
+  MOST // mosty i kładki
+  POMNIK // pomniki i miejsca pamięci
+  RZEZBA // rzeźby, fontanny, sztuka w przestrzeni
+  PARK // parki, ogrody, cmentarze
+  PUBLICZNY // ratusze, szkoły, szpitale, teatry, hale
+  TECHNICZNY // dworce, wieże ciśnień, fortyfikacje, przemysł
+  ARCHITEKTURA // pozostałe budynki
+}
+
+enum Rarity {
+  COMMON
+  RARE
+  EPIC
+  LEGENDARY
+}
+
+enum Era {
+  SREDNIOWIECZE // < 1500
+  NOWOZYTNOSC // 1500-1799
+  WIEK_XIX // 1800-1899
+  WIEK_XX // 1900-1945
+  POWOJENNE // >= 1946
+}
+
+enum HeritageLevel {
+  UNESCO
+  POMNIK_HISTORII
+  REJESTR // rejestr zabytków
+  EWIDENCJA // gminna / wojewódzka ewidencja
+  BRAK
+}
+
+// ---------- Użytkownicy ----------
 
 model User {
-  id        Int           @id @default(autoincrement())
-  email     String        @unique
-  password  String
-  createdAt DateTime      @default(now())
-  visited   UserVisited[]
+  id          Int      @id @default(autoincrement())
+  email       String   @unique
+  /// Publiczna nazwa (e-mail nigdy nie jest pokazywany innym graczom)
+  displayName String   @unique
+  password    String
+  createdAt   DateTime @default(now())
+
+  visited      UserVisited[]
+  showcase     ShowcaseSlot[]
+  comments     Comment[]
+  duelsCreated Duel[]         @relation("DuelCreator")
+  duelsJoined  Duel[]         @relation("DuelOpponent")
 }
 
+// ---------- Zabytki (dane z importu: backend/scripts/import) ----------
+
 model Monument {
-  id          Int           @id @default(autoincrement())
-  name        String        @unique
-  description String
-  latitude    Float
-  longitude   Float
+  id                Int              @id @default(autoincrement())
+  /// np. "wd:Q11785821" – stabilny klucz importu
+  externalId        String           @unique
+  source            MonumentSource   @default(MANUAL)
+  name              String
+  /// Pełny opis (pokazywany po odwiedzeniu)
+  description       String?
+  /// "wikipedia" | "generated"
+  descriptionSource String?
+  category          MonumentCategory
+  /// Oryginalny typ obiektu, np. "kamienica", "wieża ciśnień"
+  rawType           String?
+  latitude          Float
+  longitude         Float
+  city              String           @default("Wrocław")
+  address           String?
+  /// Nazwa pliku na Wikimedia Commons (URL budowany w API)
+  imageFile         String?
+  builtYear         Int?
+  /// Czytelna data powstania, np. "1861 r.", "XIV wiek"
+  builtLabel        String?
+  era               Era?
+  registerNumber    String?
+  heritageLevel     HeritageLevel    @default(BRAK)
+  /// Rozpoznawalność: liczba artykułów w Wikipediach
+  fame              Int              @default(0)
+  wikipediaUrl      String?
+  rarity            Rarity           @default(COMMON)
+  xp                Int              @default(10)
+  /// Promień (m), w którym można odznaczyć obiekt
+  visitRadius       Int              @default(50)
+
   visitedBy   UserVisited[]
+  showcasedIn ShowcaseSlot[]
+  comments    Comment[]
+
+  @@index([category])
+  @@index([city])
 }
+
+// ---------- Wizyty (#1 XP) ----------
 
 model UserVisited {
   id         Int      @id @default(autoincrement())
   userId     Int
   monumentId Int
   visitedAt  DateTime @default(now())
+  /// XP przyznane w chwili wizyty (zmiana wzoru nie zmienia historii)
+  xpEarned   Int      @default(0)
 
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   monument Monument @relation(fields: [monumentId], references: [id], onDelete: Cascade)
 
   // Użytkownik może odwiedzić dany zabytek tylko raz
   @@unique([userId, monumentId])
+  @@index([monumentId])
+}
+
+// ---------- Gablotka (#4) ----------
+
+model ShowcaseSlot {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  /// 0-4
+  slot       Int
+  monumentId Int
+  createdAt  DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  monument Monument @relation(fields: [monumentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, slot])
+  @@unique([userId, monumentId])
+}
+
+// ---------- Mini forum przy zabytkach (#6) ----------
+
+model Comment {
+  id         Int      @id @default(autoincrement())
+  monumentId Int
+  userId     Int
+  body       String   @db.VarChar(500)
+  createdAt  DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  monument Monument @relation(fields: [monumentId], references: [id], onDelete: Cascade)
+
+  @@index([monumentId, createdAt])
+}
+
+// ---------- Geoguessr 1v1 (#3) ----------
+
+model Duel {
+  id            Int       @id @default(autoincrement())
+  /// Krótki kod do udostępnienia przeciwnikowi
+  code          String    @unique
+  /// Rundy są generowane deterministycznie z seeda – bez osobnej tabeli rund
+  seed          Int
+  rounds        Int       @default(5)
+  creatorId     Int
+  opponentId    Int?
+  creatorScore  Int?
+  opponentScore Int?
+  createdAt     DateTime  @default(now())
+  finishedAt    DateTime?
+
+  creator  User  @relation("DuelCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  opponent User? @relation("DuelOpponent", fields: [opponentId], references: [id], onDelete: SetNull)
 }

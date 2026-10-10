@@ -1,16 +1,14 @@
 import {
-  Body,
   Controller,
   Get,
-  HttpCode,
   Param,
   ParseIntPipe,
-  Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { AuthUser, CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { VisitDto } from './dto/visit.dto';
+import { MonumentsQueryDto } from './dto/monuments-query.dto';
 import { MonumentsService } from './monuments.service';
 
 @UseGuards(JwtAuthGuard)
@@ -18,18 +16,17 @@ import { MonumentsService } from './monuments.service';
 export class MonumentsController {
   constructor(private readonly monumentsService: MonumentsService) {}
 
+  /** Lista na mapę. Opcjonalnie ?category=KAMIENICA&rarity=EPIC */
   @Get()
-  findAll(@CurrentUser() user: AuthUser) {
-    return this.monumentsService.findAllForUser(user.userId);
+  findAll(@CurrentUser() user: AuthUser, @Query() query: MonumentsQueryDto) {
+    return this.monumentsService.findAllForUser(user.userId, query);
   }
 
-  @Post(':id/visit')
-  @HttpCode(200)
-  visit(
+  @Get(':id')
+  findOne(
     @CurrentUser() user: AuthUser,
     @Param('id', ParseIntPipe) id: number,
-    @Body() dto: VisitDto,
   ) {
-    return this.monumentsService.visit(user.userId, id, dto);
+    return this.monumentsService.findOneForUser(user.userId, id);
   }
 }
