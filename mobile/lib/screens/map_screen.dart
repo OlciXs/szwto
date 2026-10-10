@@ -9,6 +9,7 @@ import '../config.dart';
 import '../models/monument.dart';
 import '../services/api_service.dart';
 import 'login_screen.dart';
+import 'profile_screen.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -264,6 +265,15 @@ class _MapScreenState extends State<MapScreen> {
             tooltip: 'Odśwież',
             icon: const Icon(Icons.refresh),
             onPressed: _loading ? null : _loadMonuments,
+          ),
+          IconButton(
+            tooltip: 'Mój profil',
+            icon: const Icon(Icons.person_outline),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const ProfileScreen()),
+              );
+            },
           ),
           IconButton(
             tooltip: 'Wyloguj',

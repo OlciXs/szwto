@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config.dart';
 import '../models/monument.dart';
+import '../models/user_profile.dart';
 
 class ApiException implements Exception {
   final int statusCode;
@@ -122,6 +123,16 @@ class ApiService {
       ),
     );
     return VisitResult.fromJson(_decode(response) as Map<String, dynamic>);
+  }
+
+  // ---------- Profil ----------
+
+  Future<UserProfile> getProfile() async {
+    final response = await _send(
+      () => http.get(_uri('/profile'), headers: _headers),
+    );
+    final data = _decode(response) as Map<String, dynamic>;
+    return UserProfile.fromJson(data);
   }
 
   // ---------- Pomocnicze ----------
