@@ -1,5 +1,4 @@
 {
-  "buildCommand": "flutter channel stable && flutter upgrade && flutter build web --release",
-  "outputDirectory": "build/web",
-  "framework": "other"
+  "buildCommand": "echo 'OK'",
+  "outputDirectory": "build/web"
 }
