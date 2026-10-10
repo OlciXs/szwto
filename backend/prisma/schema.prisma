@@ -1,0 +1,38 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int           @id @default(autoincrement())
+  email     String        @unique
+  password  String
+  createdAt DateTime      @default(now())
+  visited   UserVisited[]
+}
+
+model Monument {
+  id          Int           @id @default(autoincrement())
+  name        String        @unique
+  description String
+  latitude    Float
+  longitude   Float
+  visitedBy   UserVisited[]
+}
+
+model UserVisited {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  monumentId Int
+  visitedAt  DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  monument Monument @relation(fields: [monumentId], references: [id], onDelete: Cascade)
+
+  // Użytkownik może odwiedzić dany zabytek tylko raz
+  @@unique([userId, monumentId])
+}
