@@ -821,8 +821,10 @@ class _DuelPlayScreenState extends State<DuelPlayScreen> {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Column(
-            children: [
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
               const SizedBox(height: 10),
 
               // ── Question banner ──
@@ -853,71 +855,42 @@ class _DuelPlayScreenState extends State<DuelPlayScreen> {
 
               const SizedBox(height: 14),
 
-              // ── All 3 cards: same size, Pokemon ratio, one row ──
-              Expanded(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    // Each card gets equal width; height is driven by aspect ratio
-                    final cardW = (constraints.maxWidth - 24) / 3; // 2 gaps of 12
-                    final cardH = cardW / cardRatio;
-                    final fitsHeight = cardH <= constraints.maxHeight - 4;
-                    final finalW = fitsHeight
-                        ? cardW
-                        : (constraints.maxHeight - 4) * cardRatio;
-                    final finalH = finalW / cardRatio;
-
-                    return Center(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          // My card
-                          SizedBox(
-                            width: finalW,
-                            height: finalH,
-                            child: _PlayingCard(
-                              card: myCard,
-                              role: CardRole.player,
-                              ownerName: isCreator ? duel.creatorName : duel.opponentName,
-                              isSelectable: !_revealed,
-                              isSelected: selected == myKey,
-                              isRevealed: _revealed,
-                              isCloser: round.closer == myKey,
-                              distanceMeters: _revealed ? myDist : null,
-                              onTap: () => _pick(myKey),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          // Center card (flip-able)
-                          SizedBox(
-                            width: finalW,
-                            height: finalH,
-                            child: _FlipCard(
-                              card: round.centerMonument,
-                              flipped: _flipped,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          // Opponent card
-                          SizedBox(
-                            width: finalW,
-                            height: finalH,
-                            child: _PlayingCard(
-                              card: oppCard,
-                              role: CardRole.opponent,
-                              ownerName: isCreator ? duel.opponentName : duel.creatorName,
-                              isSelectable: !_revealed,
-                              isSelected: selected == oppKey,
-                              isRevealed: _revealed,
-                              isCloser: round.closer == oppKey,
-                              distanceMeters: _revealed ? oppDist : null,
-                              onTap: () => _pick(oppKey),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
+              // ── Karty ustawione pionowo, żeby były czytelne na telefonie ──
+              AspectRatio(
+                aspectRatio: cardRatio,
+                child: _PlayingCard(
+                  card: myCard,
+                  role: CardRole.player,
+                  ownerName: isCreator ? duel.creatorName : duel.opponentName,
+                  isSelectable: !_revealed,
+                  isSelected: selected == myKey,
+                  isRevealed: _revealed,
+                  isCloser: round.closer == myKey,
+                  distanceMeters: _revealed ? myDist : null,
+                  onTap: () => _pick(myKey),
+                ),
+              ),
+              const SizedBox(height: 12),
+              AspectRatio(
+                aspectRatio: cardRatio,
+                child: _FlipCard(
+                  card: round.centerMonument,
+                  flipped: _flipped,
+                ),
+              ),
+              const SizedBox(height: 12),
+              AspectRatio(
+                aspectRatio: cardRatio,
+                child: _PlayingCard(
+                  card: oppCard,
+                  role: CardRole.opponent,
+                  ownerName: isCreator ? duel.opponentName : duel.creatorName,
+                  isSelectable: !_revealed,
+                  isSelected: selected == oppKey,
+                  isRevealed: _revealed,
+                  isCloser: round.closer == oppKey,
+                  distanceMeters: _revealed ? oppDist : null,
+                  onTap: () => _pick(oppKey),
                 ),
               ),
 
@@ -1019,7 +992,8 @@ class _DuelPlayScreenState extends State<DuelPlayScreen> {
               ),
 
               const SizedBox(height: 10),
-            ],
+              ],
+            ),
           ),
         ),
       ),
