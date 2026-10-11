@@ -3,7 +3,7 @@
 Aplikacja do odkrywania i kolekcjonowania zabytków **Wrocławia** (~450 obiektów z artykułem na Wikipedii, prawie wszystkie ze zdjęciem i długim opisem historycznym).
 Zabytki główne (~50) są zawsze widoczne na mapie, pozostałe to **ukryte perełki** – pojawiają się dopiero w promieniu 250 m od gracza.
 Tryb demo (Profil → „Tryb demo”) pozwala „teleportować się” długim przytrzymaniem mapy / prawym przyciskiem myszy.
-Zabytek można odznaczyć tylko na miejscu – promień zależy od obiektu (40–400 m, geofencing sprawdzany po stronie backendu).
+Zabytek można odznaczyć tylko na miejscu – trzeba być maksymalnie 40 m od obiektu (geofencing sprawdzany po stronie backendu).
 
 | Warstwa | Technologia |
 |---|---|

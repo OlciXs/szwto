@@ -198,28 +198,12 @@ export function xpFor(rarity: Rarity, category: MonumentCategory): number {
 
 // ---------- Promień odwiedzin ----------
 
-const CATEGORY_RADIUS: Record<MonumentCategory, number> = {
-  KAMIENICA: 40,
-  PALAC: 75,
-  SAKRALNY: 75,
-  MOST: 75,
-  POMNIK: 40,
-  RZEZBA: 40,
-  PARK: 150,
-  PUBLICZNY: 75,
-  TECHNICZNY: 75,
-  ARCHITEKTURA: 50,
-};
-
-const HUGE_AREA = /układ urbanistyczny|stare miasto|port lotniczy|osiedle|wielki zespół|ogród zoologiczny/;
-const LARGE_AREA = /zespół|kompleks|park|ogród|cmentarz|stadion|esplanada|aleja|plac|rynek|ulica|centrum/;
-
-/** Duże obiekty mają współrzędne środka – 50 m od środka bywa nieosiągalne. */
-export function visitRadiusFor(category: MonumentCategory, typeLabels: string[]): number {
-  const base = CATEGORY_RADIUS[category];
-  if (typeLabels.some((t) => HUGE_AREA.test(t))) return Math.max(base, 400);
-  if (typeLabels.some((t) => LARGE_AREA.test(t))) return Math.max(base, 200);
-  return base;
+/** Każdy zabytek można odznaczyć maksymalnie 40 m od współrzędnych obiektu. */
+export function visitRadiusFor(
+  _category: MonumentCategory,
+  _typeLabels: string[],
+): number {
+  return 40;
 }
 
 // ---------- Ciekawostka zastępcza ----------

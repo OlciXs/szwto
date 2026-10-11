@@ -43,7 +43,7 @@ Dopisując endpoint, dodaj wiersz w tabeli swojego toru.
   "thumbUrl": "https://upload.wikimedia.org/...330px-....jpg",   // lub null
   "builtYear": 1250, "builtLabel": "XIII wiek",
   "era": "SREDNIOWIECZE",           // SREDNIOWIECZE | NOWOZYTNOSC | WIEK_XIX | WIEK_XX | POWOJENNE | null
-  "xp": 150, "visitRadius": 75,
+  "xp": 150, "visitRadius": 40,
   "visited": false, "visitedAt": null
 }
 ```
@@ -96,4 +96,3 @@ Dopisując endpoint, dodaj wiersz w tabeli swojego toru.
 | POST | `/game/duels` | `{ opponentId?, isBot? }` → utworzenie pojedynku (wymaga min. 10 kart u obu graczy) |
 | GET | `/game/duels/:id` | Pobranie stanu pojedynku i 3 wygenerowanych rund z kartami |
 | POST | `/game/duels/:id/answers` | `{ answers: ['CREATOR' | 'OPPONENT', ...] }` → przesłanie odpowiedzi na 3 rundy i rozliczenie wyników |
-

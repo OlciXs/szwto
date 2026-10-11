@@ -63,7 +63,7 @@ class Monument {
       builtLabel: json['builtLabel'] as String?,
       era: json['era'] as String?,
       xp: json['xp'] as int? ?? 0,
-      visitRadius: json['visitRadius'] as int? ?? 50,
+      visitRadius: json['visitRadius'] as int? ?? 40,
       visited: json['visited'] as bool? ?? false,
       visitedAt: _parseDate(json['visitedAt']),
     );

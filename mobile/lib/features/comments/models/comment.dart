@@ -70,7 +70,7 @@ class CommentsPage {
   factory CommentsPage.fromJson(Map<String, dynamic> json) => CommentsPage(
         total: json['total'] as int? ?? 0,
         visited: json['visited'] as bool? ?? false,
-        visitRadius: json['visitRadius'] as int? ?? 50,
+        visitRadius: json['visitRadius'] as int? ?? 40,
         hasMore: json['hasMore'] as bool? ?? false,
         comments: (json['comments'] as List<dynamic>? ?? const [])
             .map((c) => MonumentComment.fromJson(c as Map<String, dynamic>))

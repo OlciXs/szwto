@@ -24,7 +24,7 @@ void main() {
       'builtLabel': 'XIII wiek',
       'era': 'SREDNIOWIECZE',
       'xp': 150,
-      'visitRadius': 75,
+      'visitRadius': 40,
       'visited': true,
       'visitedAt': '2026-10-10T12:00:00.000Z',
     });
@@ -55,7 +55,7 @@ void main() {
     expect(monument.latitude, 51.0);
     expect(monument.category, MonumentCategory.architektura);
     expect(monument.rarity, Rarity.common);
-    expect(monument.visitRadius, 50);
+    expect(monument.visitRadius, 40);
   });
 
   test('MonumentDetails: opis zablokowany przed wizytą', () {
@@ -67,7 +67,7 @@ void main() {
       'latitude': 51.11,
       'longitude': 17.04,
       'xp': 65,
-      'visitRadius': 75,
+      'visitRadius': 40,
       'visited': false,
       'teaser': 'Most · 1861 r.',
       'description': null,
@@ -154,7 +154,7 @@ void main() {
 
   test('Komentarze i ranking – bez e-maila, z poziomem autora', () {
     final page = CommentsPage.fromJson({
-      'total': 1, 'visited': false, 'visitRadius': 75, 'hasMore': false,
+      'total': 1, 'visited': false, 'visitRadius': 40, 'hasMore': false,
       'comments': [
         {'id': 1, 'body': 'Piękny gotyk', 'createdAt': '2026-10-11T10:00:00.000Z', 'isMine': false,
          'author': {'id': 2, 'displayName': 'Ola', 'level': 4, 'rankIndex': 1, 'rankName': 'Spacerowicz'}},
