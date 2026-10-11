@@ -53,7 +53,7 @@ class _AppShellState extends State<AppShell> {
           NavigationDestination(
             icon: Icon(Icons.style_outlined),
             selectedIcon: Icon(Icons.style),
-            label: 'Kolekcja',
+            label: 'Karty',
           ),
           NavigationDestination(
             icon: Icon(Icons.sports_esports_outlined),
