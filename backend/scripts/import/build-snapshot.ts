@@ -18,7 +18,7 @@ import {
   visitRadiusFor,
   xpFor,
 } from './enrich';
-import { Snapshot, SNAPSHOT_PATH, SnapshotMonument } from './snapshot';
+import { Snapshot, SNAPSHOT_PATH, SnapshotMonument } from '../../src/database/snapshot';
 import {
   fetchDetails,
   fetchHeritageIds,

@@ -59,6 +59,8 @@ Wikipedia (REST) ──┘        (category-map.ts, enrich.ts)        (w repo, ~
 ```
 
 - Zewnętrzne API są wołane **tylko** przy `npm run import:wroclaw`, nigdy przez działający backend.
+- Logika seeda: `src/database/monument-seed.ts` – używa jej `npm run seed` oraz automatyczny setup
+  na Renderze (`src/database/database-setup.ts`: migracje przed startem, seed w tle, gdy brakuje zabytków).
 - Atrybuty pochodne (kategoria, epoka, rzadkość, XP, promień wizyty) liczy `scripts/import/enrich.ts`.
   Zmiana wzoru = `npm run import:wroclaw && npm run seed` (wizyty graczy zostają – upsert po `externalId`).
 - Zdjęcia: tylko nazwa pliku z Commons; adresy miniatur buduje `common/commons.util.ts`

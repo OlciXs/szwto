@@ -41,6 +41,17 @@ flutter run -d chrome --dart-define=API_URL=http://localhost:3000
 ```
 
 Bez `--dart-define` aplikacja łączy się z produkcją (`https://szwto.onrender.com`).
+W VS Code: Run and Debug → „Flutter – lokalny backend” albo „Flutter – produkcja (Render)”.
+
+## Deploy (Render)
+
+Render buduje backend z gałęzi **`main`**. Przy starcie na Renderze (zmienna `RENDER=true`) backend sam:
+1. aktualizuje tabele (`prisma migrate deploy`),
+2. wgrywa zabytki ze snapshotu, jeśli w bazie ich brakuje.
+
+Nie trzeba nic ustawiać w panelu – wystarczy merge do `main`. Logi: zakładka **Logs** na Renderze
+(szukaj `[DatabaseSetup]`). Sprawdzenie produkcji: `npm run smoke -- --url https://szwto.onrender.com`.
+Lokalnie ten mechanizm jest wyłączony (można włączyć `AUTO_DB_SETUP=true`).
 
 ## Struktura projektu
 
@@ -126,9 +137,8 @@ cd zabytki/backend
    JWT_SECRET="zmien-mnie-na-dlugi-losowy-sekret"
    JWT_EXPIRES_IN="7d"
    PORT=3000
-   # adres bez poolera – potrzebny do migracji; bez poolera = to samo co DATABASE_URL
-   DIRECT_URL="postgresql://postgres:haslo@localhost:5432/zabytki_db?schema=public"
    ```
+   Dla Neona użyj adresu **bez** `-pooler` w nazwie hosta (migracje Prisma nie działają przez pooler).
 2. Zainstaluj zależności i wygeneruj klienta Prisma:
    ```bash
    npm install

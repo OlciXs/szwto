@@ -7,11 +7,9 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  // Migracje nie działają przez pooler (np. Neon) – potrzebny adres bezpośredni.
-  // Bez poolera ustaw DIRECT_URL na tę samą wartość co DATABASE_URL.
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
+  // Dla Neona używaj adresu BEZ "-pooler" (migracje nie działają przez pooler).
+  url      = env("DATABASE_URL")
 }
 
 // ---------- Słowniki ----------
