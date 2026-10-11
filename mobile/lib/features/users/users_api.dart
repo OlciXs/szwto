@@ -12,8 +12,10 @@ class UsersApi {
     return PublicProfile.fromJson(data);
   }
 
-  Future<Leaderboard> getLeaderboard() async {
-    final data = await _client.get('/users/leaderboard') as Map<String, dynamic>;
+  /// [friendsOnly] – ranking tylko wśród znajomych (i mnie).
+  Future<Leaderboard> getLeaderboard({bool friendsOnly = false}) async {
+    final path = friendsOnly ? '/users/leaderboard?scope=friends' : '/users/leaderboard';
+    final data = await _client.get(path) as Map<String, dynamic>;
     return Leaderboard.fromJson(data);
   }
 

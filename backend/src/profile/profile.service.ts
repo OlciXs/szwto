@@ -28,6 +28,7 @@ export class ProfileService {
         id: true,
         email: true,
         displayName: true,
+        friendCode: true,
         createdAt: true,
         visited: {
           select: {
@@ -51,12 +52,17 @@ export class ProfileService {
       },
     });
 
-    const [totalMonuments, progression, achievements, showcase] = await Promise.all([
-      this.prisma.monument.count(),
-      this.progression.getProgress(userId), // tor B
-      this.achievements.summary(userId), // tor B
-      this.showcase.getForUser(userId), // tor D
-    ]);
+    const [totalMonuments, progression, achievements, showcase, friendsCount, incomingRequests] =
+      await Promise.all([
+        this.prisma.monument.count(),
+        this.progression.getProgress(userId), // tor B
+        this.achievements.summary(userId), // tor B
+        this.showcase.getForUser(userId), // tor D
+        this.prisma.friendship.count({
+          where: { status: 'ACCEPTED', OR: [{ requesterId: userId }, { addresseeId: userId }] },
+        }),
+        this.prisma.friendship.count({ where: { status: 'PENDING', addresseeId: userId } }),
+      ]);
 
     return {
       id: user.id,
@@ -68,6 +74,10 @@ export class ProfileService {
       progression,
       achievements,
       showcase,
+      // znajomi
+      friendCode: user.friendCode,
+      friendsCount,
+      incomingRequests,
       recentVisits: user.visited.slice(0, 5).map((v) => ({
         monumentId: v.monument.id,
         monumentName: v.monument.name,

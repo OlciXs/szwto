@@ -6,6 +6,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
+import { generateFriendCode } from '../friends/friend-code';
 import { AuthDto, RegisterDto } from './dto/auth.dto';
 
 @Injectable()
@@ -40,7 +41,12 @@ export class AuthService {
 
     const password = await bcrypt.hash(dto.password, 10);
     const user = await this.prisma.user.create({
-      data: { email, password, displayName },
+      data: {
+        email,
+        password,
+        displayName,
+        friendCode: await generateFriendCode(this.prisma),
+      },
     });
 
     return this.buildResponse(user);

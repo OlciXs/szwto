@@ -63,6 +63,8 @@ model User {
   email       String   @unique
   /// Publiczna nazwa (e-mail nigdy nie jest pokazywany innym graczom)
   displayName String   @unique
+  /// Unikalny kod do dodawania znajomych, np. "K7Q2MX" (pokazywany jako #K7Q2MX)
+  friendCode  String   @unique
   password    String
   createdAt   DateTime @default(now())
 
@@ -71,6 +73,8 @@ model User {
   comments     Comment[]
   achievements UserAchievement[]
   events       UserEvent[]
+  friendRequestsSent     Friendship[] @relation("FriendRequester")
+  friendRequestsReceived Friendship[] @relation("FriendAddressee")
   duelsCreated Duel[]         @relation("DuelCreator")
   duelsJoined  Duel[]         @relation("DuelOpponent")
 }
@@ -177,6 +181,29 @@ model UserEvent {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, type])
+}
+
+// ---------- Znajomi ----------
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+}
+
+/// Zaproszenie / znajomość. Jeden wiersz na parę graczy (kierunek = kto zaprosił).
+model Friendship {
+  id          Int              @id @default(autoincrement())
+  requesterId Int
+  addresseeId Int
+  status      FriendshipStatus @default(PENDING)
+  createdAt   DateTime         @default(now())
+  acceptedAt  DateTime?
+
+  requester User @relation("FriendRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee User @relation("FriendAddressee", fields: [addresseeId], references: [id], onDelete: Cascade)
+
+  @@unique([requesterId, addresseeId])
+  @@index([addresseeId, status])
 }
 
 // ---------- Gablotka (#4) ----------

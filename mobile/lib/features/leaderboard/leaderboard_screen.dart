@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 import '../../core/api_client.dart';
 import '../../core/widgets/error_view.dart';
 import '../achievements/achievement_style.dart';
+import '../friends/friends_screen.dart';
+import '../friends/widgets/friend_badge.dart';
 import '../users/models/public_profile.dart';
 import '../users/public_profile_screen.dart';
 import '../users/users_api.dart';
 
-/// Ranking graczy po XP – tor D. Klik w gracza otwiera jego profil.
+/// Ranking graczy po XP – tor D (wszyscy albo tylko znajomi). Klik w gracza otwiera jego profil.
 class LeaderboardScreen extends StatefulWidget {
   const LeaderboardScreen({super.key});
 
@@ -18,6 +20,7 @@ class LeaderboardScreen extends StatefulWidget {
 class _LeaderboardScreenState extends State<LeaderboardScreen> {
   Leaderboard? _data;
   String? _error;
+  bool _friendsOnly = false;
 
   @override
   void initState() {
@@ -28,19 +31,34 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
   Future<void> _load() async {
     setState(() => _error = null);
     try {
-      final data = await UsersApi.instance.getLeaderboard();
+      final data = await UsersApi.instance.getLeaderboard(friendsOnly: _friendsOnly);
       if (mounted) setState(() => _data = data);
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     }
   }
 
-  void _open(LeaderboardEntry entry) {
-    Navigator.of(context).push(
+  Future<void> _open(LeaderboardEntry entry) async {
+    await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => PublicProfileScreen(userId: entry.id, initialName: entry.displayName),
       ),
     );
+    if (mounted) _load(); // np. dodano znajomego na profilu
+  }
+
+  Future<void> _openFriends() async {
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FriendsScreen()));
+    if (mounted) _load();
+  }
+
+  void _setScope(bool friendsOnly) {
+    if (friendsOnly == _friendsOnly) return;
+    setState(() {
+      _friendsOnly = friendsOnly;
+      _data = null;
+    });
+    _load();
   }
 
   @override
@@ -53,8 +71,23 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
       appBar: AppBar(
         title: Text(data == null ? 'Ranking' : 'Ranking · ${data.totalPlayers} graczy'),
         actions: [
+          IconButton(icon: const Icon(Icons.group), onPressed: _openFriends, tooltip: 'Znajomi'),
           IconButton(icon: const Icon(Icons.refresh), onPressed: _load, tooltip: 'Odśwież'),
         ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(52),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+            child: SegmentedButton<bool>(
+              segments: const [
+                ButtonSegment(value: false, icon: Icon(Icons.public), label: Text('Wszyscy')),
+                ButtonSegment(value: true, icon: Icon(Icons.group), label: Text('Znajomi')),
+              ],
+              selected: {_friendsOnly},
+              onSelectionChanged: (s) => _setScope(s.first),
+            ),
+          ),
+        ),
       ),
       body: _error != null
           ? ErrorView(message: _error!, onRetry: _load)
@@ -65,6 +98,24 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                   child: ListView(
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     children: [
+                      if (_friendsOnly && data.totalPlayers <= 1)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+                          child: Column(
+                            children: [
+                              const Text(
+                                'Nie masz jeszcze znajomych – dodaj kogoś po kodzie gracza, żeby się ścigać.',
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 8),
+                              FilledButton.icon(
+                                onPressed: _openFriends,
+                                icon: const Icon(Icons.person_add),
+                                label: const Text('Dodaj znajomego'),
+                              ),
+                            ],
+                          ),
+                        ),
                       for (final entry in data.entries)
                         _EntryTile(entry: entry, onTap: () => _open(entry)),
                       if (meOutsideTop) ...[
@@ -130,6 +181,7 @@ class _EntryTile extends StatelessWidget {
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
             ),
+            if (entry.isFriend) const FriendBadge(),
           ],
         ),
         subtitle: Text('${entry.rankName} · ${entry.visitedCount} odwiedzonych'),

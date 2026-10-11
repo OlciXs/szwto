@@ -276,7 +276,11 @@ class _CollectionScreenState extends State<CollectionScreen> {
                         final monument = filtered[index];
                         return MonumentCardWidget(
                           monument: monument,
-                          onTap: () => CardPreviewDialog.show(context, monument),
+                          onTap: () async {
+                            await CardPreviewDialog.show(context, monument);
+                            // zabytek mógł zostać odznaczony na ekranie szczegółów
+                            if (mounted) _loadData();
+                          },
                         );
                       },
                       childCount: filtered.length,

@@ -5,6 +5,7 @@ import {
   Param,
   ParseIntPipe,
   Patch,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { IsString, Matches, MaxLength } from 'class-validator';
@@ -27,10 +28,10 @@ class UpdateMeDto {
 export class UsersController {
   constructor(private readonly users: UsersService) {}
 
-  /** Ranking graczy (musi być przed /users/:id). */
+  /** Ranking graczy; ?scope=friends – tylko znajomi (musi być przed /users/:id). */
   @Get('leaderboard')
-  leaderboard(@CurrentUser() user: AuthUser) {
-    return this.users.leaderboard(user.userId);
+  leaderboard(@CurrentUser() user: AuthUser, @Query('scope') scope?: string) {
+    return this.users.leaderboard(user.userId, scope === 'friends' ? 'friends' : 'all');
   }
 
   @Patch('me')
