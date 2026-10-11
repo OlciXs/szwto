@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   Param,
@@ -36,6 +37,15 @@ export class GameController {
   @HttpCode(201)
   createDuel(@CurrentUser() user: AuthUser, @Body() dto: CreateDuelDto) {
     return this.gameService.createDuel(user.userId, dto);
+  }
+
+  /** Usuwa pojedynek użytkownika z historii i listy aktywnych gier. */
+  @Delete('duels/:id')
+  removeDuel(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.gameService.removeDuel(user.userId, id);
   }
 
   /** Pobiera dane pojedynku i 3 rundy z kartami. */

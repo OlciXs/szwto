@@ -90,6 +90,16 @@ class GameApi {
     }
   }
 
+  Future<void> removeDuel(int duelId) async {
+    try {
+      await _client.delete('/game/duels/$duelId');
+    } catch (_) {
+      if (!_localDuels.any((duel) => duel.id == duelId)) rethrow;
+      _localDuels.removeWhere((duel) => duel.id == duelId);
+      _localDuelDetails.remove(duelId);
+    }
+  }
+
   Future<DuelAnswersResult> submitAnswers(
     int duelId,
     List<String> answers,

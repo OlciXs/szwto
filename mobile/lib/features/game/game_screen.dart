@@ -22,6 +22,7 @@ class _GameScreenState extends State<GameScreen> {
   bool _loading = true;
   String? _error;
   bool _creating = false;
+  int? _deletingDuelId;
 
   @override
   void initState() {
@@ -98,6 +99,49 @@ class _GameScreenState extends State<GameScreen> {
       ),
     );
     _loadData();
+  }
+
+  Future<void> _deleteDuel(DuelSummary duel) async {
+    final opponentName =
+        duel.isCreator ? duel.opponentName : duel.creatorName;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Usunąć pojedynek?'),
+        content: Text(
+          'Pojedynek z $opponentName zostanie usunięty z Twojej listy. '
+          'Tej operacji nie można cofnąć.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Anuluj'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: const Text('Usuń'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _deletingDuelId = duel.id);
+    try {
+      await GameApi.instance.removeDuel(duel.id);
+      await _loadData();
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _deletingDuelId = null);
+    }
   }
 
   void _showInviteSheet() {
@@ -347,9 +391,30 @@ class _GameScreenState extends State<GameScreen> {
             fontWeight: FontWeight.w600,
           ),
         ),
-        trailing: FilledButton.tonal(
-          onPressed: () => _openDuel(duel.id),
-          child: Text(!hasPlayed ? 'Graj' : 'Podgląd'),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              onPressed: _deletingDuelId == duel.id
+                  ? null
+                  : () => _deleteDuel(duel),
+              tooltip: 'Usuń pojedynek',
+              icon: _deletingDuelId == duel.id
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.delete_outline),
+              color: Theme.of(context).colorScheme.error,
+            ),
+            FilledButton.tonal(
+              onPressed: _deletingDuelId == duel.id
+                  ? null
+                  : () => _openDuel(duel.id),
+              child: Text(!hasPlayed ? 'Graj' : 'Podgląd'),
+            ),
+          ],
         ),
       ),
     );

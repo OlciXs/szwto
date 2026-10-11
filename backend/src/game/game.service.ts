@@ -169,6 +169,21 @@ export class GameService {
     });
   }
 
+  async removeDuel(userId: number, duelId: number) {
+    const duel = await this.prisma.duel.findUnique({
+      where: { id: duelId },
+      select: { creatorId: true, opponentId: true },
+    });
+
+    if (!duel) throw new NotFoundException('Nie znaleziono pojedynku.');
+    if (duel.creatorId !== userId && duel.opponentId !== userId) {
+      throw new ForbiddenException('Nie masz dostępu do tego pojedynku.');
+    }
+
+    await this.prisma.duel.delete({ where: { id: duelId } });
+    return { deleted: true };
+  }
+
   /** Pobiera szczegóły pojedynku i generuje 3 rundy. */
   async getDuel(userId: number, duelId: number) {
     const duel = await this.prisma.duel.findUnique({
