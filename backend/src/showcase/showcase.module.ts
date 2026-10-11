@@ -1,12 +1,17 @@
 import { Module } from '@nestjs/common';
+import { AchievementsModule } from '../achievements/achievements.module';
+import { ProgressionModule } from '../progression/progression.module';
+import { ShowcaseController } from './showcase.controller';
+import { ShowcaseService } from './showcase.service';
 
 /**
  * Tor D – gablotka na profilu (issue #4).
- *
- * Plan:
- *   - tabela ShowcaseSlot (slot 0-4), wystawić można tylko odwiedzony zabytek
- *   - PUT /showcase/:slot { monumentId }, DELETE /showcase/:slot
- *   - dane gablotki zwracane w profilu publicznym (users/)
+ * Liczba miejsc = nagroda za poziom (progression/levels.ts), tylko odwiedzone zabytki.
  */
-@Module({})
+@Module({
+  imports: [ProgressionModule, AchievementsModule],
+  controllers: [ShowcaseController],
+  providers: [ShowcaseService],
+  exports: [ShowcaseService],
+})
 export class ShowcaseModule {}

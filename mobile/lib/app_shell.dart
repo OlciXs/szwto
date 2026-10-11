@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'features/collection/collection_screen.dart';
 import 'features/game/game_screen.dart';
+import 'features/leaderboard/leaderboard_screen.dart';
 import 'features/map/map_screen.dart';
 import 'features/profile/profile_screen.dart';
 
@@ -14,16 +15,22 @@ class AppShell extends StatefulWidget {
 }
 
 class _AppShellState extends State<AppShell> {
+  static const _collectionTab = 1;
+  static const _leaderboardTab = 2;
+  static const _profileTab = 4;
+
   int _index = 0;
 
   /// Zmieniany przy każdym wejściu w zakładkę, żeby odświeżyć dane (np. po wizycie).
   int _collectionVersion = 0;
+  int _leaderboardVersion = 0;
   int _profileVersion = 0;
 
   void _select(int index) {
     setState(() {
-      if (index == 1) _collectionVersion++;
-      if (index == 3) _profileVersion++;
+      if (index == _collectionTab) _collectionVersion++;
+      if (index == _leaderboardTab) _leaderboardVersion++;
+      if (index == _profileTab) _profileVersion++;
       _index = index;
     });
   }
@@ -37,6 +44,7 @@ class _AppShellState extends State<AppShell> {
         children: [
           const MapScreen(),
           CollectionScreen(key: ValueKey('collection-$_collectionVersion')),
+          LeaderboardScreen(key: ValueKey('leaderboard-$_leaderboardVersion')),
           const GameScreen(),
           ProfileScreen(key: ValueKey('profile-$_profileVersion')),
         ],
@@ -54,6 +62,11 @@ class _AppShellState extends State<AppShell> {
             icon: Icon(Icons.style_outlined),
             selectedIcon: Icon(Icons.style),
             label: 'Kolekcja',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.leaderboard_outlined),
+            selectedIcon: Icon(Icons.leaderboard),
+            label: 'Ranking',
           ),
           NavigationDestination(
             icon: Icon(Icons.sports_esports_outlined),

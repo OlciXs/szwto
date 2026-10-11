@@ -13,6 +13,7 @@ import { RewardsService } from './rewards.service';
   imports: [ProgressionModule],
   controllers: [AchievementsController],
   providers: [AchievementsService, RewardsService, RewardsListener],
-  exports: [AchievementsService],
+  // RewardsService: komentarze i gablotka (tor D) też zwracają nagrody
+  exports: [AchievementsService, RewardsService],
 })
 export class AchievementsModule {}

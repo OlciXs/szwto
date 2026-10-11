@@ -83,6 +83,7 @@ export const checks: SmokeCheck[] = [
       expect(res.body.description === null, 'opis powinien być ukryty');
       expect(res.body.teaser, 'brak typu/daty (teaser)');
       expect(res.body.summary, 'brak zajawki (summary) przed wizytą');
+      expect(res.body.wikipediaUrl === null, 'link do Wikipedii widoczny przed wizytą');
       state.target = res.body;
       return `${res.body.name} (${res.body.rarity}, ${res.body.xp} XP, zajawka: "${res.body.teaser}")`;
     },
@@ -139,6 +140,7 @@ export const checks: SmokeCheck[] = [
         `opis za krótki (${res.body.description.length} znaków)`,
       );
       expect(res.body.visitorsCount >= 1, 'visitorsCount < 1');
+      expect(res.body.wikipediaUrl, 'brak linku do Wikipedii po wizycie');
       return `${res.body.description.length} znaków, ${
         res.body.description.split('\n\n').length
       } akapitów (źródło: ${res.body.descriptionSource})`;

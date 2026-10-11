@@ -3,6 +3,7 @@ import { AchievementsService } from '../achievements/achievements.service';
 import { commonsThumbUrl } from '../common/commons.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProgressionService } from '../progression/progression.service';
+import { ShowcaseService } from '../showcase/showcase.service';
 
 /**
  * Własny profil gracza. Sekcje innych modułów (XP, achievementy, gablotka)
@@ -14,6 +15,7 @@ export class ProfileService {
     private readonly prisma: PrismaService,
     private readonly progression: ProgressionService,
     private readonly achievements: AchievementsService,
+    private readonly showcase: ShowcaseService,
   ) {}
 
   async getProfile(userId: number) {
@@ -49,10 +51,11 @@ export class ProfileService {
       },
     });
 
-    const [totalMonuments, progression, achievements] = await Promise.all([
+    const [totalMonuments, progression, achievements, showcase] = await Promise.all([
       this.prisma.monument.count(),
       this.progression.getProgress(userId), // tor B
       this.achievements.summary(userId), // tor B
+      this.showcase.getForUser(userId), // tor D
     ]);
 
     return {
@@ -64,6 +67,7 @@ export class ProfileService {
       totalMonuments,
       progression,
       achievements,
+      showcase,
       recentVisits: user.visited.slice(0, 5).map((v) => ({
         monumentId: v.monument.id,
         monumentName: v.monument.name,

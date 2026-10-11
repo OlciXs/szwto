@@ -39,9 +39,12 @@ export const checks: SmokeCheck[] = [
       const ids = (newAchievements as any[]).map((a) => a.id);
       expect(ids.includes('visits-1'), `brak „Pierwszy krok” (${ids})`);
       expect(ids.includes('legendary-1'), `brak „Pierwsza legenda” (${ids})`);
+      // Premie zależą m.in. od pory dnia (sekretne „Nocny marek”/„Ranny ptaszek”),
+      // więc liczymy je z faktycznie odblokowanych osiągnięć.
+      const bonus = (newAchievements as any[]).reduce((sum, a) => sum + a.xp, 0);
       expect(
-        progression.xpGained === target.xp + 25 + 50,
-        `xpGained=${progression.xpGained}, oczekiwano ${target.xp + 75}`,
+        progression.xpGained === target.xp + bonus,
+        `xpGained=${progression.xpGained}, oczekiwano ${target.xp} + ${bonus}`,
       );
       return `+${progression.xpGained} XP → poziom ${progression.level} (${progression.rank}), osiągnięcia: ${(newAchievements as any[]).map((a) => a.name).join(', ')}`;
     },
