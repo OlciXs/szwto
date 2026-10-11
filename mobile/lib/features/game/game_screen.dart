@@ -344,9 +344,12 @@ class _GameScreenState extends State<GameScreen> {
     Color statusColor;
 
     if (isFinished) {
-      final myS = duel.myScore ?? 0;
-      final oppS = duel.opponentScore ?? 0;
-      if (myS > oppS) {
+      final myS = duel.myScore;
+      final oppS = duel.opponentScore;
+      if (myS == null || oppS == null) {
+        statusText = 'Wynik niedostępny';
+        statusColor = Colors.grey.shade700;
+      } else if (myS > oppS) {
         statusText = 'Zwycięstwo ($myS : $oppS)';
         statusColor = Colors.green.shade700;
       } else if (myS < oppS) {

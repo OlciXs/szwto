@@ -246,6 +246,15 @@ export class GameService {
       throw new ForbiddenException('Nie masz dostępu do tego pojedynku.');
     }
 
+    if (
+      dto.answers.length !== duel.rounds ||
+      dto.answers.some((answer) => answer !== 'CREATOR' && answer !== 'OPPONENT')
+    ) {
+      throw new BadRequestException(
+        `Odpowiedzi muszą zawierać dokładnie ${duel.rounds} poprawnych wyborów.`,
+      );
+    }
+
     if (isCreator && duel.creatorScore !== null) {
       throw new BadRequestException('Już rozegrałeś swoje rundy w tym pojedynku.');
     }
