@@ -57,8 +57,11 @@ class CardPreviewDialog extends StatelessWidget {
                         ),
                       ),
                       onPressed: () {
-                        Navigator.of(context).pop();
-                        Navigator.of(context).push(
+                        // Navigator pobieramy PRZED zamknięciem okna – po pop()
+                        // kontekst okna jest już zamykany.
+                        final navigator = Navigator.of(context);
+                        navigator.pop();
+                        navigator.push(
                           MaterialPageRoute(
                             builder: (_) =>
                                 MonumentDetailScreen(monument: monument),

@@ -141,6 +141,9 @@ export const checks: SmokeCheck[] = [
       );
       expect(res.body.visitorsCount >= 1, 'visitorsCount < 1');
       expect(res.body.wikipediaUrl, 'brak linku do Wikipedii po wizycie');
+      const paragraphs = res.body.description.split('\n\n').length;
+      expect(paragraphs <= 5, `opis ma ${paragraphs} akapitów (maks. 5)`);
+      expect(res.body.funFact, 'brak ciekawostki po wizycie (Ratusz ją ma)');
       return `${res.body.description.length} znaków, ${
         res.body.description.split('\n\n').length
       } akapitów (źródło: ${res.body.descriptionSource})`;

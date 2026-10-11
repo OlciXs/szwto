@@ -110,6 +110,9 @@ class MonumentDetails {
 
   /// Długi opis historyczny (akapity oddzielone pustą linią) – null przed wizytą.
   final String? description;
+
+  /// Ciekawostka – null przed wizytą (albo gdy jej brak).
+  final String? funFact;
   final bool descriptionLocked;
 
   /// "wikipedia" | "generated"
@@ -129,6 +132,7 @@ class MonumentDetails {
     required this.visitorsCount,
     this.summary,
     this.description,
+    this.funFact,
     this.descriptionSource,
     this.address,
     this.image,
@@ -143,6 +147,7 @@ class MonumentDetails {
       teaser: json['teaser'] as String? ?? '',
       summary: json['summary'] as String?,
       description: json['description'] as String?,
+      funFact: json['funFact'] as String?,
       descriptionLocked: json['descriptionLocked'] as bool? ?? true,
       descriptionSource: json['descriptionSource'] as String?,
       address: json['address'] as String?,

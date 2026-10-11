@@ -69,6 +69,8 @@ export function toMonumentDetails(
     summary: m.summary,
     /** Długi opis historyczny (akapity oddzielone \n\n) – dopiero po wizycie */
     description: visited ? m.description : null,
+    /** Ciekawostka – też dopiero po wizycie */
+    funFact: visited ? m.funFact : null,
     descriptionLocked: !visited,
     descriptionSource: m.descriptionSource,
     address: m.address,

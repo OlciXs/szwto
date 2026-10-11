@@ -212,6 +212,44 @@ class _MonumentDetailScreenState extends State<MonumentDetailScreen> {
                       style: theme.textTheme.bodyMedium?.copyWith(height: 1.5),
                     ),
                   ),
+                if (details.funFact != null) ...[
+                  Card(
+                    color: Colors.amber.shade50,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.lightbulb, color: Colors.amber.shade700),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Ciekawostka',
+                                  style: theme.textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.amber.shade900,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  details.funFact!,
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    height: 1.4,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
                 if (details.descriptionSource == 'wikipedia')
                   Text(
                     'Źródło: Wikipedia (CC BY-SA 4.0)',
