@@ -87,9 +87,13 @@ Dopisując endpoint, dodaj wiersz w tabeli swojego toru.
 }
 ```
 
-## Planowane (do uzupełnienia przez tory)
+## Tor E – Gra / Pojedynki 1v1
 
-| Tor | Metoda | Ścieżka | Opis |
-|---|---|---|---|
-| E | GET | `/game/round` | runda solo |
-| E | POST | `/duels`, `/duels/:code/join`, `/duels/:code/answers` | pojedynek asynchroniczny |
+| Metoda | Ścieżka | Opis |
+|---|---|---|
+| GET | `/game/eligibility` | Sprawdzenie kwalifikacji (wymóg min. 10 kart) dla gracza i listy znajomych |
+| GET | `/game/duels` | Lista aktywnych i zakończonych pojedynków gracza |
+| POST | `/game/duels` | `{ opponentId?, isBot? }` → utworzenie pojedynku (wymaga min. 10 kart u obu graczy) |
+| GET | `/game/duels/:id` | Pobranie stanu pojedynku i 3 wygenerowanych rund z kartami |
+| POST | `/game/duels/:id/answers` | `{ answers: ['CREATOR' | 'OPPONENT', ...] }` → przesłanie odpowiedzi na 3 rundy i rozliczenie wyników |
+
