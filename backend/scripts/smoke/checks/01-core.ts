@@ -44,15 +44,16 @@ export const checks: SmokeCheck[] = [
       const res = await api.get('/monuments');
       expectStatus(res, 200);
       const list = res.body as any[];
-      expect(list.length > 1000, `za mało zabytków: ${list.length} (czy był npm run seed?)`);
+      expect(list.length > 300, `za mało zabytków: ${list.length} (czy był npm run seed?)`);
       const first = list[0];
-      for (const field of ['category', 'rarity', 'xp', 'visitRadius', 'latitude', 'visited']) {
+      for (const field of ['category', 'rarity', 'isMajor', 'xp', 'visitRadius', 'latitude', 'visited']) {
         expect(field in first, `brak pola "${field}"`);
       }
       const withPhoto = list.filter((m) => m.thumbUrl).length;
-      const legendary = list.filter((m) => m.rarity === 'LEGENDARY').length;
+      const major = list.filter((m) => m.isMajor).length;
+      expect(major > 10 && major < list.length, `dziwna liczba głównych zabytków: ${major}`);
       state.monuments = list;
-      return `${list.length} zabytków, ${withPhoto} ze zdjęciem, ${legendary} legendarnych`;
+      return `${list.length} zabytków (${major} głównych, ${list.length - major} perełek), ${withPhoto} ze zdjęciem`;
     },
   },
   {
@@ -73,14 +74,15 @@ export const checks: SmokeCheck[] = [
     run: async ({ api, state }) => {
       const list = state.monuments as any[];
       const target =
-        list.find((m) => m.name === 'Ratusz we Wrocławiu') ??
+        list.find((m) => m.name === 'Ratusz') ??
         list.find((m) => m.rarity === 'LEGENDARY' && m.thumbUrl);
       expect(target, 'nie znaleziono zabytku testowego');
       const res = await api.get(`/monuments/${target.id}`);
       expectStatus(res, 200);
       expect(res.body.descriptionLocked === true, 'opis powinien być zablokowany');
       expect(res.body.description === null, 'opis powinien być ukryty');
-      expect(res.body.teaser, 'brak zajawki');
+      expect(res.body.teaser, 'brak typu/daty (teaser)');
+      expect(res.body.summary, 'brak zajawki (summary) przed wizytą');
       state.target = res.body;
       return `${res.body.name} (${res.body.rarity}, ${res.body.xp} XP, zajawka: "${res.body.teaser}")`;
     },
@@ -132,8 +134,14 @@ export const checks: SmokeCheck[] = [
       expectStatus(res, 200);
       expect(res.body.visited === true, 'visited != true');
       expect(res.body.description, 'brak opisu po wizycie');
+      expect(
+        res.body.description.length > 500,
+        `opis za krótki (${res.body.description.length} znaków)`,
+      );
       expect(res.body.visitorsCount >= 1, 'visitorsCount < 1');
-      return `"${res.body.description.slice(0, 70)}…" (źródło: ${res.body.descriptionSource})`;
+      return `${res.body.description.length} znaków, ${
+        res.body.description.split('\n\n').length
+      } akapitów (źródło: ${res.body.descriptionSource})`;
     },
   },
   {

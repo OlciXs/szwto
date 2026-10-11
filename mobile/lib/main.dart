@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'app_shell.dart';
 import 'core/api_client.dart';
+import 'core/demo_mode.dart';
 import 'core/routes.dart';
 import 'features/auth/login_screen.dart';
 
@@ -11,6 +12,7 @@ Future<void> main() async {
   // Próba wczytania sesji przed uruchomieniem aplikacji
   try {
     await ApiClient.instance.loadSession();
+    await DemoMode.instance.load();
   } catch (e) {
     debugPrint('Błąd ładowania sesji: $e');
   }

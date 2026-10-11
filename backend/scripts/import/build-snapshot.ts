@@ -14,6 +14,7 @@ import {
   eraFor,
   generatedDescription,
   heritageLevelFor,
+  isMajorRarity,
   parseBuilt,
   visitRadiusFor,
   xpFor,
@@ -25,9 +26,54 @@ import {
   fetchSculptureIds,
   WikidataItem,
 } from './wikidata';
-import { fetchSummaries } from './wikipedia';
+import { fetchArticles } from './wikipedia';
 
 const CITY = 'Wrocław';
+
+/**
+ * Nazwa wyświetlana = tytuł artykułu z Wikipedii (bez „we Wrocławiu”).
+ * Etykiety z Wikidata bywają rejestrowe („Rynek 15”, „Kamienica”, „D. dom handlowy”),
+ * a tytuł artykułu to właściwa nazwa („Kamienica Pod Złotym Koszykiem”).
+ */
+function displayNameFor(item: WikidataItem & { wikipediaTitle: string }): string {
+  return item.wikipediaTitle
+    .replace(/_/g, ' ')
+    .replace(/\s+we Wrocławiu(?=$|\s*\()/, '')
+    .replace(/\s*\(Wrocław\)$/, '')
+    .trim();
+}
+
+const distanceMeters = (
+  a: { latitude: number; longitude: number },
+  b: { latitude: number; longitude: number },
+) =>
+  Math.hypot(
+    (a.latitude - b.latitude) * 111_320,
+    (a.longitude - b.longitude) * 111_320 * Math.cos((a.latitude * Math.PI) / 180),
+  );
+
+/**
+ * Zabezpieczenie przed duplikatami: ten sam artykuł Wikipedii albo ta sama nazwa
+ * w promieniu 150 m. Zostaje obiekt bardziej rozpoznawalny (więcej Wikipedii).
+ */
+function removeDuplicates<T extends WikidataItem & { wikipediaTitle: string }>(
+  items: T[],
+  onDuplicate: () => void,
+): T[] {
+  const sorted = [...items].sort((a, b) => b.sitelinks - a.sitelinks);
+  const kept: T[] = [];
+  for (const item of sorted) {
+    const name = displayNameFor(item).toLowerCase();
+    const duplicate = kept.some(
+      (k) =>
+        k.wikipediaTitle === item.wikipediaTitle ||
+        (displayNameFor(k).toLowerCase() === name && distanceMeters(k, item) < 150),
+    );
+    if (duplicate) onDuplicate();
+    else kept.push(item);
+  }
+  return kept;
+}
 
 function countBy<T>(items: T[], key: (item: T) => string | null | undefined) {
   const counts: Record<string, number> = {};
@@ -53,28 +99,30 @@ async function main() {
   const skipped: Record<string, number> = {};
   const skip = (reason: string) => (skipped[reason] = (skipped[reason] ?? 0) + 1);
 
-  const kept = raw.filter((item): item is WikidataItem & { name: string } => {
-    if (!item.name) return skip('brak polskiej nazwy'), false;
-    if (item.demolished) return skip('wyburzony (P576)'), false;
-    if (isExcluded(item.name, item.typeLabels)) return skip('wykluczony typ'), false;
-    return true;
-  });
+  const filtered = raw.filter(
+    (item): item is WikidataItem & { wikipediaTitle: string } => {
+      if (item.demolished) return skip('wyburzony (P576)'), false;
+      // Decyzja zespołu: tylko obiekty z artykułem na polskiej Wikipedii –
+      // odpadają anonimowe kamienice/oficyny i rekordy-duplikaty z rejestru.
+      if (!item.wikipediaTitle) return skip('brak artykułu na pl.wikipedii'), false;
+      if (isExcluded(item.name ?? '', item.typeLabels)) return skip('wykluczony typ'), false;
+      return true;
+    },
+  );
+  const kept = removeDuplicates(filtered, () => skip('duplikat'));
 
   console.log('3/4 Opisy z Wikipedii…');
-  const summaries = await fetchSummaries(
-    kept.map((i) => i.wikipediaTitle).filter((t): t is string => t !== null),
-  );
+  const articles = await fetchArticles(kept.map((i) => i.wikipediaTitle));
 
   console.log('4/4 Wzbogacanie danych…');
   const base = kept.map((item) => {
-    const { category, rawType } = categorize(item.typeLabels, item.name);
+    const name = displayNameFor(item);
+    const { category, rawType } = categorize(item.typeLabels, name);
     const { builtYear, builtLabel } = parseBuilt(item.inceptions);
     const heritageLevel = heritageLevelFor(item.heritageQids);
-    const summary = item.wikipediaTitle
-      ? summaries.get(item.wikipediaTitle) ?? null
-      : null;
     return {
       item,
+      name,
       externalId: `wd:${item.qid}`,
       category,
       rawType,
@@ -82,8 +130,8 @@ async function main() {
       builtLabel,
       heritageLevel,
       fame: item.sitelinks,
-      hasWikipedia: item.wikipediaUrl !== null,
-      summary,
+      hasWikipedia: true,
+      article: articles.get(item.wikipediaTitle) ?? null,
     };
   });
 
@@ -92,20 +140,21 @@ async function main() {
   const monuments: SnapshotMonument[] = base
     .map((m) => {
       const rarity = rarities.get(m.externalId)!;
+      const generated = generatedDescription({
+        rawType: m.rawType,
+        address: m.item.address,
+        builtLabel: m.builtLabel,
+        heritageLevel: m.heritageLevel,
+        registerNumber: m.item.registerNumber,
+      });
       return {
         externalId: m.externalId,
         source: MonumentSource.WIKIDATA,
-        name: m.item.name!,
-        description:
-          m.summary ??
-          generatedDescription({
-            rawType: m.rawType,
-            address: m.item.address,
-            builtLabel: m.builtLabel,
-            heritageLevel: m.heritageLevel,
-            registerNumber: m.item.registerNumber,
-          }),
-        descriptionSource: m.summary ? 'wikipedia' : 'generated',
+        name: m.name,
+        summary: m.article?.summary ?? generated,
+        description: m.article?.description ?? generated,
+        descriptionSource: m.article ? 'wikipedia' : 'generated',
+        isMajor: isMajorRarity(rarity),
         category: m.category,
         rawType: m.rawType,
         latitude: m.item.latitude,
@@ -145,10 +194,20 @@ async function main() {
   console.log('Kategorie:', countBy(monuments, (m) => m.category));
   console.log('Rarity:', countBy(monuments, (m) => m.rarity));
   console.log('Epoki:', countBy(monuments, (m) => m.era));
+  const fromWiki = monuments.filter((m) => m.descriptionSource === 'wikipedia');
+  const avgLength = Math.round(
+    fromWiki.reduce((sum, m) => sum + (m.description?.length ?? 0), 0) /
+      Math.max(1, fromWiki.length),
+  );
+  console.log(
+    `Główne (zawsze widoczne): ${monuments.filter((m) => m.isMajor).length}, ukryte perełki: ${
+      monuments.filter((m) => !m.isMajor).length
+    }`,
+  );
   console.log(
     `Ze zdjęciem: ${monuments.filter((m) => m.imageFile).length}, z opisem z Wikipedii: ${
-      monuments.filter((m) => m.descriptionSource === 'wikipedia').length
-    }`,
+      fromWiki.length
+    } (średnio ${avgLength} znaków)`,
   );
 }
 

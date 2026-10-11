@@ -12,6 +12,10 @@ class Monument {
   final MonumentCategory category;
   final String? rawType;
   final Rarity rarity;
+
+  /// Zabytek główny – zawsze widoczny na mapie. Pozostałe to ukryte perełki,
+  /// które pojawiają się dopiero w zasięgu gracza (features/map/discovery_service.dart).
+  final bool isMajor;
   final double latitude;
   final double longitude;
   final String? thumbUrl;
@@ -32,6 +36,7 @@ class Monument {
     required this.longitude,
     required this.xp,
     required this.visitRadius,
+    this.isMajor = false,
     this.rawType,
     this.thumbUrl,
     this.builtYear,
@@ -48,6 +53,9 @@ class Monument {
       category: MonumentCategory.fromApi(json['category'] as String?),
       rawType: json['rawType'] as String?,
       rarity: Rarity.fromApi(json['rarity'] as String?),
+      // Starszy backend nie zna podziału – wtedy pokazujemy wszystko jako główne,
+      // zamiast chować całą mapę.
+      isMajor: json['isMajor'] as bool? ?? true,
       latitude: (json['latitude'] as num).toDouble(),
       longitude: (json['longitude'] as num).toDouble(),
       thumbUrl: json['thumbUrl'] as String?,
@@ -93,9 +101,14 @@ class MonumentImage {
 /// Pełne dane zabytku (GET /monuments/:id).
 class MonumentDetails {
   final Monument monument;
+
+  /// Typ i data, np. „Ratusz · XIII wiek”.
   final String teaser;
 
-  /// Pełny opis – null, dopóki gracz nie odwiedzi zabytku.
+  /// Zajawka (1–2 zdania) – widoczna zawsze.
+  final String? summary;
+
+  /// Długi opis historyczny (akapity oddzielone pustą linią) – null przed wizytą.
   final String? description;
   final bool descriptionLocked;
 
@@ -114,6 +127,7 @@ class MonumentDetails {
     required this.descriptionLocked,
     required this.heritageLevel,
     required this.visitorsCount,
+    this.summary,
     this.description,
     this.descriptionSource,
     this.address,
@@ -127,6 +141,7 @@ class MonumentDetails {
     return MonumentDetails(
       monument: Monument.fromJson(json),
       teaser: json['teaser'] as String? ?? '',
+      summary: json['summary'] as String?,
       description: json['description'] as String?,
       descriptionLocked: json['descriptionLocked'] as bool? ?? true,
       descriptionSource: json['descriptionSource'] as String?,
@@ -138,6 +153,13 @@ class MonumentDetails {
       visitorsCount: json['visitorsCount'] as int? ?? 0,
     );
   }
+
+  /// Akapity długiego opisu.
+  List<String> get paragraphs => (description ?? '')
+      .split(RegExp(r'\n\s*\n'))
+      .map((p) => p.trim())
+      .where((p) => p.isNotEmpty)
+      .toList();
 }
 
 class VisitResult {

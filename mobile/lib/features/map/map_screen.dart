@@ -7,16 +7,23 @@ import 'package:latlong2/latlong.dart';
 
 import '../../core/api_client.dart';
 import '../../core/config.dart';
+import '../../core/demo_mode.dart';
 import '../../core/location.dart';
+import '../../core/models/monument_category.dart';
 import '../../core/widgets/error_banner.dart';
 import '../monuments/models/monument.dart';
 import '../monuments/monument_detail_screen.dart';
 import '../monuments/monuments_api.dart';
 import '../monuments/widgets/monument_sheet.dart';
 import '../monuments/widgets/visit_feedback.dart';
+import 'discovery_service.dart';
+import 'widgets/category_filter_bar.dart';
 import 'widgets/monument_marker.dart';
 
-/// Mapa zabytków – TOR A (klastrowanie, filtry kategorii, itp. dopisujemy tutaj).
+/// Mapa zabytków – TOR A.
+/// Zabytki główne są widoczne zawsze, ukryte perełki pojawiają się w zasięgu
+/// [AppConfig.discoveryRadiusMeters] (DiscoveryService). W trybie demo długie
+/// przytrzymanie mapy przenosi gracza w wybrane miejsce.
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
 
@@ -26,25 +33,40 @@ class MapScreen extends StatefulWidget {
 
 class _MapScreenState extends State<MapScreen> {
   final _mapController = MapController();
+  final _discovery = DiscoveryService.instance;
+  final _demo = DemoMode.instance;
 
   List<Monument> _monuments = [];
-  Position? _position;
+  Position? _gpsPosition;
   StreamSubscription<Position>? _positionSub;
+  Set<MonumentCategory> _categoryFilter = {};
 
   bool _loading = true;
   String? _loadError;
   String? _locationError;
   bool _centeredOnUser = false;
 
+  /// Pozycja gracza: „teleport” w trybie demo, inaczej GPS.
+  Position? get _position => _demo.isActive ? _demo.position.value : _gpsPosition;
+
   @override
   void initState() {
     super.initState();
-    _loadMonuments();
+    _demo.position.addListener(_onDemoPosition);
+    _demo.enabled.addListener(_onDemoToggled);
+    _init();
+  }
+
+  Future<void> _init() async {
+    await _discovery.load();
+    await _loadMonuments();
     _startLocationUpdates();
   }
 
   @override
   void dispose() {
+    _demo.position.removeListener(_onDemoPosition);
+    _demo.enabled.removeListener(_onDemoToggled);
     _positionSub?.cancel();
     _mapController.dispose();
     super.dispose();
@@ -62,11 +84,42 @@ class _MapScreenState extends State<MapScreen> {
       final monuments = await MonumentsApi.instance.getMonuments();
       if (!mounted) return;
       setState(() => _monuments = monuments);
+      _scan();
     } on ApiException catch (e) {
       if (mounted) setState(() => _loadError = e.message);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  // ---------- Odkrywanie perełek ----------
+
+  Future<void> _scan() async {
+    final position = _position;
+    if (position == null || _monuments.isEmpty) return;
+
+    final found = await _discovery.scan(position, _monuments);
+    if (!mounted || found.isEmpty) return;
+    setState(() {});
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.auto_awesome, color: Colors.amberAccent),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                found.length == 1
+                    ? 'Odkryto ukrytą perełkę: ${found.first.name}'
+                    : 'Odkryto ukryte perełki w okolicy: ${found.length}',
+              ),
+            ),
+          ],
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   // ---------- Lokalizacja ----------
@@ -84,7 +137,7 @@ class _MapScreenState extends State<MapScreen> {
       final current = await Geolocator.getCurrentPosition(
         locationSettings: LocationService.streamSettings,
       );
-      _onPosition(current);
+      _onGpsPosition(current);
     } catch (_) {
       // Pozycję i tak dostarczy strumień poniżej.
     }
@@ -93,16 +146,36 @@ class _MapScreenState extends State<MapScreen> {
     await _positionSub?.cancel();
     _positionSub = Geolocator.getPositionStream(
       locationSettings: LocationService.streamSettings,
-    ).listen(_onPosition, onError: (_) {});
+    ).listen(_onGpsPosition, onError: (_) {});
   }
 
-  void _onPosition(Position position) {
+  void _onGpsPosition(Position position) {
+    LocationService.remember(position);
     if (!mounted) return;
     setState(() {
-      _position = position;
+      _gpsPosition = position;
       _locationError = null;
     });
+    if (_demo.isActive) return;
+    _scan();
     if (!_centeredOnUser) _centerOnUser();
+  }
+
+  void _onDemoPosition() {
+    if (!mounted) return;
+    setState(() {});
+    _scan();
+  }
+
+  void _onDemoToggled() {
+    if (!mounted) return;
+    setState(() {});
+    _scan();
+  }
+
+  void _onLongPress(TapPosition _, LatLng point) {
+    if (!_demo.enabled.value) return;
+    _demo.teleport(point.latitude, point.longitude);
   }
 
   void _centerOnUser() {
@@ -151,25 +224,50 @@ class _MapScreenState extends State<MapScreen> {
 
   // ---------- UI ----------
 
+  List<MonumentCategory> get _presentCategories {
+    final present = _monuments.map((m) => m.category).toSet();
+    return MonumentCategory.values.where(present.contains).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final visitedCount = _monuments.where((m) => m.visited).length;
+    final theme = Theme.of(context);
     final position = _position;
+    final demoOn = _demo.enabled.value;
+
+    final visible = _monuments
+        .where(_discovery.isVisible)
+        .where((m) =>
+            _categoryFilter.isEmpty || _categoryFilter.contains(m.category))
+        .toList()
+      // główne rysujemy na wierzchu
+      ..sort((a, b) => (a.isMajor ? 1 : 0) - (b.isMajor ? 1 : 0));
+
+    final majors = _monuments.where((m) => m.isMajor).toList();
+    final minorsTotal = _monuments.length - majors.length;
+    final majorsVisited = majors.where((m) => m.visited).length;
+    final minorsFound = _discovery.discoveredMinorCount(_monuments);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Odkrywca Zabytków'),
         actions: [
           if (_monuments.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(right: 4),
+            Tooltip(
+              message: 'Odwiedzone zabytki główne · odkryte perełki',
               child: Chip(
-                avatar: Icon(
-                  Icons.check_circle,
-                  color: Colors.green.shade600,
-                  size: 18,
+                label: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.star, size: 16, color: Colors.orange.shade700),
+                    const SizedBox(width: 2),
+                    Text('$majorsVisited/${majors.length}'),
+                    const SizedBox(width: 10),
+                    Icon(Icons.auto_awesome, size: 16, color: Colors.purple.shade400),
+                    const SizedBox(width: 2),
+                    Text('$minorsFound/$minorsTotal'),
+                  ],
                 ),
-                label: Text('$visitedCount / ${_monuments.length}'),
               ),
             ),
           IconButton(
@@ -183,25 +281,42 @@ class _MapScreenState extends State<MapScreen> {
         children: [
           FlutterMap(
             mapController: _mapController,
-            options: const MapOptions(
-              initialCenter: LatLng(
+            options: MapOptions(
+              initialCenter: const LatLng(
                 AppConfig.initialLatitude,
                 AppConfig.initialLongitude,
               ),
               initialZoom: AppConfig.initialZoom,
               minZoom: 10,
               maxZoom: 19,
+              onLongPress: _onLongPress,
+              // na komputerze (np. prezentacja): prawy przycisk myszy
+              onSecondaryTap: _onLongPress,
             ),
             children: [
               TileLayer(
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'pl.zabytki.zabytki_app',
               ),
+              if (position != null)
+                CircleLayer(
+                  circles: [
+                    CircleMarker(
+                      point: LatLng(position.latitude, position.longitude),
+                      radius: AppConfig.discoveryRadiusMeters,
+                      useRadiusInMeter: true,
+                      color: theme.colorScheme.primary.withAlpha(20),
+                      borderColor: theme.colorScheme.primary.withAlpha(90),
+                      borderStrokeWidth: 1.5,
+                    ),
+                  ],
+                ),
               MarkerLayer(
                 markers: [
-                  for (final monument in _monuments)
+                  for (final monument in visible)
                     buildMonumentMarker(
                       monument,
+                      fresh: _discovery.isFresh(monument.id),
                       onTap: () => _openMonumentSheet(monument),
                     ),
                 ],
@@ -211,16 +326,19 @@ class _MapScreenState extends State<MapScreen> {
                   markers: [
                     Marker(
                       point: LatLng(position.latitude, position.longitude),
-                      width: 22,
-                      height: 22,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.blue,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 3),
-                          boxShadow: const [
-                            BoxShadow(blurRadius: 6, color: Colors.black38),
-                          ],
+                      width: 24,
+                      height: 24,
+                      // przepuszcza kliknięcia – stojąc na zabytku, nadal da się go otworzyć
+                      child: IgnorePointer(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: _demo.isActive ? Colors.deepPurple : Colors.blue,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 3),
+                            boxShadow: const [
+                              BoxShadow(blurRadius: 6, color: Colors.black38),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -229,11 +347,22 @@ class _MapScreenState extends State<MapScreen> {
               const RichAttributionWidget(
                 attributions: [
                   TextSourceAttribution('© współtwórcy OpenStreetMap'),
-                  TextSourceAttribution('Dane zabytków: Wikidata'),
+                  TextSourceAttribution('Dane zabytków: Wikidata, Wikipedia'),
                 ],
               ),
             ],
           ),
+          if (_monuments.isNotEmpty)
+            Positioned(
+              top: 8,
+              left: 0,
+              right: 0,
+              child: CategoryFilterBar(
+                categories: _presentCategories,
+                selected: _categoryFilter,
+                onChanged: (value) => setState(() => _categoryFilter = value),
+              ),
+            ),
           if (_loading)
             const Positioned(
               top: 0,
@@ -243,7 +372,7 @@ class _MapScreenState extends State<MapScreen> {
             ),
           if (_loadError != null)
             Positioned(
-              top: 12,
+              top: 60,
               left: 12,
               right: 12,
               child: ErrorBanner(
@@ -253,7 +382,32 @@ class _MapScreenState extends State<MapScreen> {
                 onAction: _loadMonuments,
               ),
             ),
-          if (_locationError != null)
+          if (demoOn)
+            Positioned(
+              bottom: 16,
+              left: 12,
+              right: 88,
+              child: Material(
+                color: Colors.deepPurple.shade50,
+                elevation: 3,
+                borderRadius: BorderRadius.circular(12),
+                child: const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      Icon(Icons.touch_app, color: Colors.deepPurple),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Tryb demo: przytrzymaj palec na mapie (na komputerze: prawy przycisk myszy), aby się tam przenieść.',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            )
+          else if (_locationError != null)
             Positioned(
               bottom: 16,
               left: 12,

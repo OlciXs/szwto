@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/api_client.dart';
+import '../../core/demo_mode.dart';
 import '../../core/format.dart';
 import '../../core/routes.dart';
 import '../../core/widgets/error_view.dart';
@@ -136,6 +137,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             subtitle: 'Wkrótce – odznaki za odkrywanie kolejnych typów zabytków.',
             colorScheme: colorScheme,
           ),
+
+          const SizedBox(height: 24),
+          const _DemoModeCard(),
 
           const SizedBox(height: 32),
           OutlinedButton.icon(
@@ -364,6 +368,35 @@ class _RecentVisitTile extends StatelessWidget {
             color: Colors.orange.shade800,
             fontWeight: FontWeight.bold,
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Tryb demo („teleport”) – do prezentacji bez chodzenia po mieście
+// ---------------------------------------------------------------------------
+
+class _DemoModeCard extends StatelessWidget {
+  const _DemoModeCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final demo = DemoMode.instance;
+    return Card(
+      child: ValueListenableBuilder<bool>(
+        valueListenable: demo.enabled,
+        builder: (context, enabled, _) => SwitchListTile(
+          secondary: const Icon(Icons.touch_app_outlined),
+          title: const Text('Tryb demo (teleport)'),
+          subtitle: const Text(
+            'Przytrzymaj palec na mapie (na komputerze: prawy przycisk myszy), '
+            'aby przenieść się w to miejsce – '
+            'odkrywaj perełki i odznaczaj zabytki bez wychodzenia z domu.',
+          ),
+          value: enabled,
+          onChanged: demo.setEnabled,
         ),
       ),
     );

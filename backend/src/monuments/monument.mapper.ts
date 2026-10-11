@@ -6,7 +6,7 @@ import { commonsImage, commonsThumbUrl } from '../common/commons.util';
  * (kolekcja, gablotka, gra), żeby aplikacja dostawała wszędzie te same pola.
  */
 
-/** Wersja lekka – lista na mapie (~1400 obiektów, bez opisów). */
+/** Wersja lekka – lista na mapie (bez opisów). */
 export function toMonumentListItem(
   m: Monument,
   visit: { visitedAt: Date } | null,
@@ -17,6 +17,8 @@ export function toMonumentListItem(
     category: m.category,
     rawType: m.rawType,
     rarity: m.rarity,
+    // Główny = zawsze widoczny na mapie; pozostałe to ukryte perełki (odkrywane w zasięgu)
+    isMajor: m.isMajor,
     latitude: m.latitude,
     longitude: m.longitude,
     thumbUrl: m.imageFile ? commonsThumbUrl(m.imageFile, 330) : null,
@@ -32,13 +34,13 @@ export function toMonumentListItem(
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-/** Krótka zajawka widoczna przed odwiedzeniem. */
+/** Typ i data powstania, np. „Ratusz · XIII wiek”. */
 export function monumentTeaser(m: Monument): string {
   const type = m.rawType ? capitalize(m.rawType) : 'Zabytek';
   return m.builtLabel ? `${type} · ${m.builtLabel}` : type;
 }
 
-/** Wersja pełna – ekran szczegółów. Pełny opis dopiero po odwiedzeniu (#6). */
+/** Wersja pełna – ekran szczegółów. Długi opis dopiero po odwiedzeniu (#6). */
 export function toMonumentDetails(
   m: Monument,
   visit: { visitedAt: Date } | null,
@@ -48,6 +50,9 @@ export function toMonumentDetails(
   return {
     ...toMonumentListItem(m, visit),
     teaser: monumentTeaser(m),
+    /** 1–2 zdania z Wikipedii – widoczne zawsze */
+    summary: m.summary,
+    /** Długi opis historyczny (akapity oddzielone \n\n) – dopiero po wizycie */
     description: visited ? m.description : null,
     descriptionLocked: !visited,
     descriptionSource: m.descriptionSource,

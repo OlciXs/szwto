@@ -55,7 +55,7 @@ Błąd w listenerze jest logowany, ale nie psuje wizyty (domyślne `suppressErro
 
 ```
 Wikidata (SPARQL) ──► scripts/import/build-snapshot.ts ──► prisma/data/monuments.wroclaw.json ──► npm run seed ──► Postgres
-Wikipedia (REST) ──┘        (category-map.ts, enrich.ts)        (w repo, ~1400 obiektów)
+Wikipedia (API)  ──┘        (category-map.ts, enrich.ts)        (w repo, ~450 obiektów)
 ```
 
 - Zewnętrzne API są wołane **tylko** przy `npm run import:wroclaw`, nigdy przez działający backend.

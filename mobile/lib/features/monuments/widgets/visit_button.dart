@@ -27,18 +27,23 @@ class VisitButton extends StatefulWidget {
   State<VisitButton> createState() => _VisitButtonState();
 }
 
+enum _Stage { idle, locating, sending }
+
 class _VisitButtonState extends State<VisitButton> {
-  bool _busy = false;
+  _Stage _stage = _Stage.idle;
   String? _error;
+
+  bool get _busy => _stage != _Stage.idle;
 
   Future<void> _submit() async {
     setState(() {
-      _busy = true;
+      _stage = _Stage.locating;
       _error = null;
     });
 
     try {
-      final position = await LocationService.freshPosition();
+      final position = await LocationService.positionForVisit();
+      if (mounted) setState(() => _stage = _Stage.sending);
       final result = await MonumentsApi.instance.visitMonument(
         widget.monument.id,
         position.latitude,
@@ -47,7 +52,7 @@ class _VisitButtonState extends State<VisitButton> {
       widget.monument.visited = true;
       widget.monument.visitedAt = result.visitedAt ?? DateTime.now();
       if (!mounted) return;
-      setState(() => _busy = false);
+      setState(() => _stage = _Stage.idle);
       widget.onVisited(result);
     } on ApiException catch (e) {
       _fail(e.message);
@@ -62,7 +67,7 @@ class _VisitButtonState extends State<VisitButton> {
     if (!mounted) return;
     setState(() {
       _error = message;
-      _busy = false;
+      _stage = _Stage.idle;
     });
   }
 
@@ -126,11 +131,13 @@ class _VisitButtonState extends State<VisitButton> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : Icon(monument.visited ? Icons.check_circle : Icons.flag),
-          label: Text(
-            monument.visited
+          label: Text(switch (_stage) {
+            _Stage.locating => 'Ustalam pozycję…',
+            _Stage.sending => 'Wysyłam…',
+            _Stage.idle => monument.visited
                 ? 'Odwiedzono ${monument.visitedAt != null ? formatDate(monument.visitedAt!) : ''}'
                 : 'Oznacz jako odwiedzony (+${monument.xp} XP)',
-          ),
+          }),
         ),
       ],
     );
