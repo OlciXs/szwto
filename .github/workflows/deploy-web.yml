@@ -43,7 +43,7 @@ jobs:
       # Bez --dart-define aplikacja łączy się z produkcyjnym backendem (Render).
       # --base-href: strona działa pod adresem /szwto/, nie w katalogu głównym domeny.
       - name: Build web
-        run: flutter build web --release --base-href /szwto/
+        run: flutter build web --release --base-href /szwto/ --pwa-strategy=none
 
       - name: Publikacja na gh-pages
         uses: peaceiris/actions-gh-pages@v4
