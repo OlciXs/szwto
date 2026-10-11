@@ -1,5 +1,7 @@
 import '../../../core/models/monument_category.dart';
 import '../../../core/models/rarity.dart';
+import '../../achievements/models/achievement.dart';
+import '../../achievements/models/progression.dart';
 
 class UserProfile {
   final int id;
@@ -10,6 +12,12 @@ class UserProfile {
   final int totalMonuments;
   final List<RecentVisit> recentVisits;
 
+  /// Tor B – poziom i osiągnięcia (null przy starszym backendzie).
+  final Progression? progression;
+  final int achievementsUnlocked;
+  final int achievementsTotal;
+  final List<AchievementBadge> recentAchievements;
+
   UserProfile({
     required this.id,
     required this.email,
@@ -18,9 +26,15 @@ class UserProfile {
     required this.visitedCount,
     required this.totalMonuments,
     required this.recentVisits,
+    this.progression,
+    this.achievementsUnlocked = 0,
+    this.achievementsTotal = 0,
+    this.recentAchievements = const [],
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
+    final progression = json['progression'] as Map<String, dynamic>?;
+    final achievements = json['achievements'] as Map<String, dynamic>? ?? const {};
     return UserProfile(
       id: json['id'] as int,
       email: json['email'] as String,
@@ -30,6 +44,12 @@ class UserProfile {
       totalMonuments: json['totalMonuments'] as int,
       recentVisits: (json['recentVisits'] as List<dynamic>)
           .map((item) => RecentVisit.fromJson(item as Map<String, dynamic>))
+          .toList(),
+      progression: progression != null ? Progression.fromJson(progression) : null,
+      achievementsUnlocked: achievements['unlockedCount'] as int? ?? 0,
+      achievementsTotal: achievements['total'] as int? ?? 0,
+      recentAchievements: (achievements['recent'] as List<dynamic>? ?? const [])
+          .map((a) => AchievementBadge.fromJson(a as Map<String, dynamic>))
           .toList(),
     );
   }

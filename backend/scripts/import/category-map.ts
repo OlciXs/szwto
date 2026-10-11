@@ -26,7 +26,7 @@ const CATEGORY_RULES: [MonumentCategory, RegExp][] = [
   ],
   [
     MonumentCategory.PUBLICZNY,
-    /ratusz|rathaus|gmach|szpital|sanatorium|uniwersyt|uczelni|szkoł|bursa|dom studencki|dormitorium|instytut|teatr|opera|kino|widownia|muzeum|instytucja kultury|budynek kulturalny|hala|pawilon|dom towarowy|dom handlowy|sklep|apteka|bank|poczta|hotel|restauracja|biurowiec|administracyjn|użyteczności publicznej|zakład karny|siedziba policji|remiza|stadion|trybuna|pływalnia|dom dziecka|kostnica|rynek/,
+    /ratusz|gmach|szpital|sanatorium|uniwersyt|uczelni|szkoł|bursa|dom studencki|dormitorium|instytut|teatr|opera|kino|widownia|muzeum|instytucja kultury|budynek kulturalny|hala|pawilon|dom towarowy|dom handlowy|sklep|apteka|bank|poczta|hotel|restauracja|biurowiec|administracyjn|użyteczności publicznej|zakład karny|siedziba policji|remiza|stadion|trybuna|pływalnia|dom dziecka|kostnica|rynek/,
   ],
   [
     MonumentCategory.TECHNICZNY,

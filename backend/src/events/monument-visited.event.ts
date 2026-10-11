@@ -17,20 +17,27 @@ export interface MonumentVisitedEvent {
   visit: UserVisited;
 }
 
-/** Każdy moduł wypełnia wyłącznie swoje pole. */
+/** Nagrody za akcję – wypełnia achievements/rewards.service.ts. */
 export interface VisitRewards {
-  /** progression/ (#1 XP) */
+  /** XP i poziom (#1) – policzone PO premiach za nowe osiągnięcia */
   progression?: {
+    /** XP za akcję łącznie z premiami za osiągnięcia */
     xpGained: number;
     totalXp: number;
     level: number;
     levelUp: boolean;
+    rank: string;
+    rankUp: boolean;
+    /** Nagrody za poziom odblokowane tą akcją, np. „Zasięg perełek 300 m” */
+    newPerks: string[];
   };
-  /** achievements/ (#5) */
+  /** Nowo odblokowane osiągnięcia (#5) */
   newAchievements?: {
     id: string;
     name: string;
     description: string;
-    icon?: string;
+    icon: string;
+    tier: 'BRONZE' | 'SILVER' | 'GOLD' | null;
+    xp: number;
   }[];
 }

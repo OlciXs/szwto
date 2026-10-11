@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
+import { AchievementsService } from '../achievements/achievements.service';
 import { commonsThumbUrl } from '../common/commons.util';
 import { PrismaService } from '../prisma/prisma.service';
+import { ProgressionService } from '../progression/progression.service';
 
 /**
  * Własny profil gracza. Sekcje innych modułów (XP, achievementy, gablotka)
@@ -8,9 +10,16 @@ import { PrismaService } from '../prisma/prisma.service';
  */
 @Injectable()
 export class ProfileService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly progression: ProgressionService,
+    private readonly achievements: AchievementsService,
+  ) {}
 
   async getProfile(userId: number) {
+    // Osiągnięcia „wstecz” – np. za wizyty sprzed wprowadzenia osiągnięć
+    await this.achievements.evaluate(userId);
+
     const user = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
       select: {
@@ -40,7 +49,11 @@ export class ProfileService {
       },
     });
 
-    const totalMonuments = await this.prisma.monument.count();
+    const [totalMonuments, progression, achievements] = await Promise.all([
+      this.prisma.monument.count(),
+      this.progression.getProgress(userId), // tor B
+      this.achievements.summary(userId), // tor B
+    ]);
 
     return {
       id: user.id,
@@ -49,6 +62,8 @@ export class ProfileService {
       createdAt: user.createdAt,
       visitedCount: user.visited.length,
       totalMonuments,
+      progression,
+      achievements,
       recentVisits: user.visited.slice(0, 5).map((v) => ({
         monumentId: v.monument.id,
         monumentName: v.monument.name,

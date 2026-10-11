@@ -43,13 +43,25 @@ class DiscoveryService {
       .where((m) => !m.isMajor && (m.visited || _discovered.contains(m.id)))
       .length;
 
+  /// Liczba wciąż ukrytych perełek w promieniu [radius] – „Radar perełek” (nagroda za 5. poziom).
+  int hiddenNearby(Position position, List<Monument> monuments, double radius) =>
+      monuments
+          .where((m) =>
+              !isVisible(m) &&
+              LocationService.distanceTo(position, m.latitude, m.longitude) <= radius)
+          .length;
+
   /// Odkrywa perełki w zasięgu [position]. Zwraca nowo odkryte.
-  Future<List<Monument>> scan(Position position, List<Monument> monuments) async {
+  /// [radius] rośnie z poziomem gracza (Perks.discoveryRadius).
+  Future<List<Monument>> scan(
+    Position position,
+    List<Monument> monuments, {
+    double radius = AppConfig.discoveryRadiusMeters,
+  }) async {
     final found = monuments
         .where((m) =>
             !isVisible(m) &&
-            LocationService.distanceTo(position, m.latitude, m.longitude) <=
-                AppConfig.discoveryRadiusMeters)
+            LocationService.distanceTo(position, m.latitude, m.longitude) <= radius)
         .toList();
     if (found.isEmpty) return found;
 

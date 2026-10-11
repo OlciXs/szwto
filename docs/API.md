@@ -13,7 +13,10 @@ Dopisując endpoint, dodaj wiersz w tabeli swojego toru.
 | GET | `/monuments?category=&rarity=` | lista na mapę (lekka, bez opisów) – patrz `MonumentListItem` |
 | GET | `/monuments/:id` | szczegóły – patrz `MonumentDetails` |
 | POST | `/monuments/:id/visit` | `{ latitude, longitude }` → `VisitResponse`; `400`, gdy dalej niż `visitRadius` |
-| GET | `/profile` | własny profil: `displayName`, `visitedCount`, `totalMonuments`, `recentVisits[]` |
+| GET | `/profile` | własny profil: `displayName`, `visitedCount`, `totalMonuments`, `recentVisits[]`, `progression`, `achievements` (`unlockedCount`, `total`, `recent[]`) |
+| GET | `/progression` | `{ totalXp, level, rank: {index, name}, levelStartXp, nextLevelXp, progress, perks: {discoveryRadius, showcaseSlots, radar}, nextUnlock }` |
+| GET | `/achievements` | `{ unlockedCount, total, achievements: [{ id, name, description, icon, group, groupLabel, tier, xp, secret, target, progress, unlocked, unlockedAt }] }` – sekretne nieodblokowane mają `name: "???"` |
+| POST | `/events` | `{ type: "WIKIPEDIA_OPENED", monumentId }` → `{ recorded, rewards }` (może odblokować „Mola książkowego”) |
 
 ### MonumentListItem
 ```jsonc
@@ -59,9 +62,12 @@ Dopisując endpoint, dodaj wiersz w tabeli swojego toru.
   "distanceMeters": 12.3,
   "visitedAt": "2026-10-11T00:00:00.000Z",
   "xpEarned": 150,                  // 0 przy ponownej wizycie
-  "rewards": {                      // wypełniają moduły nagród (events/monument-visited.event.ts)
-    "progression": { "xpGained": 150, "totalXp": 400, "level": 3, "levelUp": true },  // tor B
-    "newAchievements": [{ "id": "first-legendary", "name": "...", "description": "..." }] // tor B
+  "rewards": {                      // achievements/rewards.service.ts (kształt: events/monument-visited.event.ts)
+    "progression": {                // policzone PO premiach za nowe osiągnięcia
+      "xpGained": 225, "totalXp": 225, "level": 3, "levelUp": true,
+      "rank": "Spacerowicz", "rankUp": true, "newPerks": ["2. miejsce w gablotce"]
+    },
+    "newAchievements": [{ "id": "legendary-1", "name": "Pierwsza legenda", "description": "...", "icon": "star", "tier": null, "xp": 50 }]
   }
 }
 ```
@@ -70,7 +76,6 @@ Dopisując endpoint, dodaj wiersz w tabeli swojego toru.
 
 | Tor | Metoda | Ścieżka | Opis |
 |---|---|---|---|
-| B | GET | `/achievements` | wszystkie achievementy z postępem gracza |
 | D | GET | `/users/:id` | publiczny profil (bez e-maila): displayName, poziom, gablotka, achievementy |
 | D | GET | `/users/leaderboard` | ranking |
 | D | PATCH | `/users/me` | `{ displayName }` |
