@@ -65,7 +65,8 @@ model User {
   displayName String   @unique
   /// Unikalny kod do dodawania znajomych, np. "K7Q2MX" (pokazywany jako #K7Q2MX)
   friendCode  String   @unique
-  password    String
+  selectedRankId String?
+  password     String
   createdAt   DateTime @default(now())
 
   visited      UserVisited[]

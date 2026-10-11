@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/api_client.dart';
 import '../../core/demo_mode.dart';
 import '../../core/format.dart';
+import '../../core/models/monument_category.dart';
 import '../../core/routes.dart';
 import '../../core/widgets/error_view.dart';
 import '../achievements/achievement_style.dart';
@@ -10,6 +11,7 @@ import '../achievements/achievements_screen.dart';
 import '../achievements/widgets/level_card.dart';
 import '../achievements/widgets/rewards_dialog.dart';
 import '../friends/friends_screen.dart';
+import '../monuments/monuments_api.dart';
 import '../showcase/widgets/showcase_section.dart';
 import '../users/users_api.dart';
 import 'models/user_profile.dart';
@@ -42,7 +44,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
 
     try {
-      final profile = await ProfileApi.instance.getProfile();
+      var profile = await ProfileApi.instance.getProfile();
+      // Starszy backend nie zwraca jeszcze rozbicia kategorii. Uzupełniamy je
+      // z listy zabytków, żeby sekcja profilu nadal działała po aktualizacji aplikacji.
+      if (profile.categoryProgress.isEmpty) {
+        final monuments = await MonumentsApi.instance.getMonuments();
+        final totals = <MonumentCategory, int>{};
+        final visited = <MonumentCategory, int>{};
+        for (final monument in monuments) {
+          totals[monument.category] = (totals[monument.category] ?? 0) + 1;
+          if (monument.visited) {
+            visited[monument.category] = (visited[monument.category] ?? 0) + 1;
+          }
+        }
+        profile = profile.copyWithCategoryProgress(
+          MonumentCategory.values
+              .where(totals.containsKey)
+              .map(
+                (category) => CategoryProgress(
+                  category: category,
+                  visited: visited[category] ?? 0,
+                  total: totals[category]!,
+                ),
+              )
+              .toList(),
+        );
+      }
       if (!mounted) return;
       setState(() => _profile = profile);
     } on ApiException catch (e) {
@@ -94,6 +121,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onEditName: _editDisplayName,
           ),
           const SizedBox(height: 24),
+          _RankSelectorCard(profile: profile, onChanged: _loadProfile),
           if (profile.progression != null) ...[
             LevelCard(progression: profile.progression!),
             const SizedBox(height: 12),
@@ -103,6 +131,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _FriendsCard(profile: profile, onChanged: _loadProfile),
           const SizedBox(height: 12),
           _StatsCard(profile: profile, colorScheme: colorScheme),
+          const SizedBox(height: 12),
+          _CategoryProgressCard(profile: profile),
           const SizedBox(height: 24),
 
           // ---------- Ostatnie odwiedziny ----------
@@ -115,7 +145,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ?.copyWith(fontWeight: FontWeight.bold),
               ),
             ),
-            ...profile.recentVisits.map((visit) => _RecentVisitTile(visit: visit)),
+            ...profile.recentVisits
+                .map((visit) => _RecentVisitTile(visit: visit)),
           ],
 
           if (profile.visitedCount == 0) ...[
@@ -209,6 +240,9 @@ class _ProfileHeader extends StatelessWidget {
     final theme = Theme.of(context);
 
     final progression = profile.progression;
+    final selectedRank = profile.rankOptions
+        .where((rank) => rank.id == profile.selectedRankId && rank.unlocked)
+        .firstOrNull;
 
     return Column(
       children: [
@@ -239,7 +273,7 @@ class _ProfileHeader extends StatelessWidget {
         if (progression != null) ...[
           const SizedBox(height: 8),
           Text(
-            '${progression.rankName} · poziom ${progression.level}',
+            '${selectedRank?.name ?? progression.rankName} · poziom ${progression.level}',
             style: TextStyle(
               color: rankColor(progression.rankIndex),
               fontWeight: FontWeight.w600,
@@ -277,6 +311,171 @@ class _ProfileHeader extends StatelessWidget {
       ],
     );
   }
+}
+
+class _RankSelectorCard extends StatelessWidget {
+  const _RankSelectorCard({required this.profile, required this.onChanged});
+
+  final UserProfile profile;
+  final Future<void> Function() onChanged;
+
+  Future<void> _showRanks(BuildContext context) async {
+    final options = profile.rankOptions.isNotEmpty
+        ? profile.rankOptions
+        : fallbackRankOptions(profile.progression?.level ?? 1);
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (_) => _RankPickerSheet(
+        profile: profile,
+        options: options,
+      ),
+    );
+    if (selected != null) {
+      try {
+        await ProfileApi.instance.selectRank(selected);
+        await onChanged();
+      } on ApiException catch (error) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(error.message)),
+          );
+        }
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = profile.rankOptions
+        .where((rank) => rank.id == profile.selectedRankId && rank.unlocked)
+        .firstOrNull;
+    return Card(
+      child: ListTile(
+        leading: const Icon(Icons.workspace_premium_outlined),
+        title: const Text(
+          'Twoja ranga',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        subtitle:
+            Text(selected?.name ?? profile.progression?.rankName ?? 'Turysta'),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => _showRanks(context),
+      ),
+    );
+  }
+}
+
+class _RankPickerSheet extends StatelessWidget {
+  const _RankPickerSheet({
+    required this.profile,
+    required this.options,
+  });
+
+  final UserProfile profile;
+  final List<RankOption> options;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Wybierz tytuł, który pokazujesz',
+              style: theme.textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Odblokowane tytuły możesz zmieniać w dowolnym momencie.',
+              style: theme.textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            Flexible(
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: options.length,
+                separatorBuilder: (_, __) => const Divider(height: 1),
+                itemBuilder: (context, index) {
+                  final rank = options[index];
+                  final isSelected = rank.id == profile.selectedRankId;
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      rank.unlocked
+                          ? Icons.workspace_premium
+                          : Icons.lock_outline,
+                      color: rank.unlocked
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.outline,
+                    ),
+                    title: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            rank.name,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: rank.unlocked
+                                  ? null
+                                  : theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                        if (isSelected)
+                          Icon(Icons.check, color: theme.colorScheme.primary),
+                      ],
+                    ),
+                    subtitle: Text(
+                      '${rank.description} · ma ją '
+                      '${_formatPercentage(rank.percentage)}% graczy',
+                    ),
+                    enabled: rank.unlocked,
+                    onTap: rank.unlocked
+                        ? () => Navigator.pop(context, rank.id)
+                        : null,
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatPercentage(double percentage) =>
+      percentage == percentage.roundToDouble()
+          ? percentage.toStringAsFixed(0)
+          : percentage.toStringAsFixed(1);
+}
+
+List<RankOption> fallbackRankOptions(int level) {
+  const ranks = [
+    ('level-tourist', 'Turysta', 1),
+    ('level-walker', 'Spacerowicz', 3),
+    ('level-explorer', 'Odkrywca', 5),
+    ('level-tracker', 'Tropiciel', 8),
+    ('level-guide', 'Przewodnik', 11),
+    ('level-heritage', 'Strażnik Dziedzictwa', 17),
+    ('level-legend', 'Legenda Wrocławia', 20),
+  ];
+  return [
+    for (final rank in ranks)
+      RankOption(
+        id: rank.$1,
+        name: rank.$2,
+        description: 'Osiągnij poziom ${rank.$3}.',
+        unlocked: level >= rank.$3,
+        percentage: 0,
+      ),
+  ];
 }
 
 // ---------------------------------------------------------------------------
@@ -390,6 +589,111 @@ class _StatItem extends StatelessWidget {
           ),
         ),
         Text(label, style: theme.textTheme.bodySmall),
+      ],
+    );
+  }
+}
+
+class _CategoryProgressCard extends StatefulWidget {
+  const _CategoryProgressCard({required this.profile});
+
+  final UserProfile profile;
+
+  @override
+  State<_CategoryProgressCard> createState() => _CategoryProgressCardState();
+}
+
+class _CategoryProgressCardState extends State<_CategoryProgressCard> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final categories = widget.profile.categoryProgress;
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          ListTile(
+            leading: Icon(Icons.category_outlined, color: colorScheme.primary),
+            title: const Text(
+              'Odkrywanie kategorii Wrocławia',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Text(
+              categories.isEmpty
+                  ? 'Dotknij, aby zobaczyć szczegóły'
+                  : '${categories.where((item) => item.visited > 0).length} z ${categories.length} rodzajów rozpoczętych',
+            ),
+            trailing: Icon(_expanded ? Icons.expand_less : Icons.expand_more),
+            onTap: categories.isEmpty
+                ? null
+                : () => setState(() => _expanded = !_expanded),
+          ),
+          if (_expanded)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
+                children: [
+                  const Divider(height: 1),
+                  const SizedBox(height: 12),
+                  for (final item in categories)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 14),
+                      child: _CategoryProgressRow(item: item),
+                    ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CategoryProgressRow extends StatelessWidget {
+  const _CategoryProgressRow({required this.item});
+
+  final CategoryProgress item;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final percent = (item.progress * 100).toStringAsFixed(0);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(item.category.icon,
+                size: 19, color: theme.colorScheme.primary),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                item.category.label,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+            Text(
+              '${item.visited}/${item.total} ($percent%)',
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: LinearProgressIndicator(
+            value: item.progress,
+            minHeight: 8,
+            backgroundColor: theme.colorScheme.surfaceContainerHighest,
+          ),
+        ),
       ],
     );
   }
@@ -567,7 +871,8 @@ class _AchievementsPreview extends StatelessWidget {
                 label: const Text('Zobacz wszystkie'),
                 onPressed: () async {
                   await Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const AchievementsScreen()),
+                    MaterialPageRoute(
+                        builder: (_) => const AchievementsScreen()),
                   );
                   await onChanged();
                 },
@@ -605,7 +910,8 @@ class _FriendsCard extends StatelessWidget {
         ),
         title: Text(
           'Znajomi (${profile.friendsCount})',
-          style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+          style:
+              theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
         ),
         subtitle: Text(
           [

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../core/api_client.dart';
+import '../../core/models/monument_category.dart';
 import '../../core/models/rarity.dart';
 import '../monuments/models/monument.dart';
 import '../monuments/monuments_api.dart';
+import '../map/widgets/category_filter_bar.dart';
 import 'card_preview_dialog.dart';
 import 'monument_card.dart';
 
@@ -23,6 +25,7 @@ class _CollectionScreenState extends State<CollectionScreen> {
 
   CollectionFilter _filter = CollectionFilter.discovered;
   Rarity? _rarityFilter;
+  final Set<MonumentCategory> _categoryFilter = {};
   String _searchQuery = '';
   final _searchController = TextEditingController();
 
@@ -83,6 +86,11 @@ class _CollectionScreenState extends State<CollectionScreen> {
 
       // Filtr rzadkości
       if (_rarityFilter != null && m.rarity != _rarityFilter) {
+        return false;
+      }
+
+      // Filtr kategorii; pusty wybór oznacza wszystkie kategorie.
+      if (_categoryFilter.isNotEmpty && !_categoryFilter.contains(m.category)) {
         return false;
       }
 
@@ -194,7 +202,9 @@ class _CollectionScreenState extends State<CollectionScreen> {
                     ),
                   ),
                   const Spacer(),
-                  if (_rarityFilter != null || _searchQuery.isNotEmpty)
+                  if (_rarityFilter != null ||
+                      _categoryFilter.isNotEmpty ||
+                      _searchQuery.isNotEmpty)
                     TextButton.icon(
                       style: TextButton.styleFrom(
                         visualDensity: VisualDensity.compact,
@@ -202,6 +212,7 @@ class _CollectionScreenState extends State<CollectionScreen> {
                       onPressed: () {
                         setState(() {
                           _rarityFilter = null;
+                          _categoryFilter.clear();
                           _searchQuery = '';
                           _searchController.clear();
                         });
@@ -245,7 +256,7 @@ class _CollectionScreenState extends State<CollectionScreen> {
                       Text(
                         _filter == CollectionFilter.discovered
                             ? 'Odwiedzaj zabytki we Wrocławiu i odznaczaj je na mapie, aby powiększać swoją talię!'
-                            : 'Zmień kryteria wyszukiwania lub filtry rzadkości.',
+                            : 'Zmień kryteria wyszukiwania lub filtry.',
                         textAlign: TextAlign.center,
                         style: const TextStyle(color: Colors.grey, fontSize: 13),
                       ),
@@ -465,6 +476,20 @@ class _CollectionScreenState extends State<CollectionScreen> {
           ),
           const SizedBox(height: 8),
 
+          CategoryFilterBar(
+            categories: _availableCategories,
+            selected: _categoryFilter,
+            sheetTitle: 'Pokaż w kolekcji',
+            onChanged: (categories) {
+              setState(() {
+                _categoryFilter
+                  ..clear()
+                  ..addAll(categories);
+              });
+            },
+          ),
+          const SizedBox(height: 8),
+
           // Wyszukiwarka
           TextField(
             controller: _searchController,
@@ -500,5 +525,15 @@ class _CollectionScreenState extends State<CollectionScreen> {
         ],
       ),
     );
+  }
+
+  List<MonumentCategory> get _availableCategories {
+    final monuments = _allMonuments;
+    if (monuments == null) return const [];
+
+    final available = monuments.map((monument) => monument.category).toSet();
+    return MonumentCategory.values
+        .where(available.contains)
+        .toList(growable: false);
   }
 }

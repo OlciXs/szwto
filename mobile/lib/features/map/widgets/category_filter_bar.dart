@@ -11,18 +11,24 @@ class CategoryFilterBar extends StatelessWidget {
     required this.categories,
     required this.selected,
     required this.onChanged,
+    this.sheetTitle = 'Pokaż na mapie',
   });
 
   /// Kategorie obecne w danych (w tej kolejności).
   final List<MonumentCategory> categories;
   final Set<MonumentCategory> selected;
   final ValueChanged<Set<MonumentCategory>> onChanged;
+  final String sheetTitle;
 
   Future<void> _openSheet(BuildContext context) async {
     final result = await showModalBottomSheet<Set<MonumentCategory>>(
       context: context,
       showDragHandle: true,
-      builder: (_) => _FilterSheet(categories: categories, initial: selected),
+      builder: (_) => _FilterSheet(
+        categories: categories,
+        initial: selected,
+        title: sheetTitle,
+      ),
     );
     if (result != null) onChanged(result);
   }
@@ -40,7 +46,9 @@ class CategoryFilterBar extends StatelessWidget {
           if (index == 0) {
             return ActionChip(
               avatar: const Icon(Icons.tune, size: 16),
-              label: Text(selected.isEmpty ? 'Filtry' : 'Filtry (${selected.length})'),
+              label: Text(
+                selected.isEmpty ? 'Filtry' : 'Filtry (${selected.length})',
+              ),
               elevation: 2,
               onPressed: () => _openSheet(context),
             );
@@ -66,10 +74,15 @@ class CategoryFilterBar extends StatelessWidget {
 }
 
 class _FilterSheet extends StatefulWidget {
-  const _FilterSheet({required this.categories, required this.initial});
+  const _FilterSheet({
+    required this.categories,
+    required this.initial,
+    required this.title,
+  });
 
   final List<MonumentCategory> categories;
   final Set<MonumentCategory> initial;
+  final String title;
 
   @override
   State<_FilterSheet> createState() => _FilterSheetState();
@@ -89,8 +102,10 @@ class _FilterSheetState extends State<_FilterSheet> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Pokaż na mapie',
-              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              widget.title,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 12),
             Wrap(
@@ -104,7 +119,9 @@ class _FilterSheetState extends State<_FilterSheet> {
                     selected: _selected.contains(category),
                     showCheckmark: false,
                     onSelected: (value) => setState(() {
-                      value ? _selected.add(category) : _selected.remove(category);
+                      value
+                          ? _selected.add(category)
+                          : _selected.remove(category);
                     }),
                   ),
               ],
