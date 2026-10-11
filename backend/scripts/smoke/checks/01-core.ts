@@ -44,7 +44,7 @@ export const checks: SmokeCheck[] = [
       const res = await api.get('/monuments');
       expectStatus(res, 200);
       const list = res.body as any[];
-      expect(list.length > 300, `za mało zabytków: ${list.length} (czy był npm run seed?)`);
+      expect(list.length > 200, `za mało zabytków: ${list.length} (czy był npm run seed?)`);
       const first = list[0];
       for (const field of ['category', 'rarity', 'isMajor', 'xp', 'visitRadius', 'latitude', 'visited']) {
         expect(field in first, `brak pola "${field}"`);

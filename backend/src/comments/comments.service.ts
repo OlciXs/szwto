@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { RewardsService } from '../achievements/rewards.service';
 import { haversineDistanceMeters } from '../common/geo.util';
+import { FriendsService } from '../friends/friends.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProgressionService } from '../progression/progression.service';
 import { CreateCommentDto } from './dto/comment.dto';
@@ -21,6 +22,7 @@ export class CommentsService {
     private readonly prisma: PrismaService,
     private readonly progression: ProgressionService,
     private readonly rewards: RewardsService,
+    private readonly friends: FriendsService,
   ) {}
 
   /** Komentarze od najnowszych; [before] = id ostatniego z poprzedniej strony. */
@@ -39,8 +41,9 @@ export class CommentsService {
       }),
     ]);
 
-    const authors = await this.progression.getSummaries([
-      ...new Set(comments.map((c) => c.userId)),
+    const [authors, friendIds] = await Promise.all([
+      this.progression.getSummaries([...new Set(comments.map((c) => c.userId))]),
+      this.friends.friendIds(viewerId),
     ]);
 
     return {
@@ -62,6 +65,7 @@ export class CommentsService {
             level: author?.level ?? 1,
             rankIndex: author?.rank.index ?? 0,
             rankName: author?.rank.name ?? 'Turysta',
+            isFriend: friendIds.has(c.userId),
           },
         };
       }),

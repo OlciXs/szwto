@@ -13,19 +13,23 @@ Dopisując endpoint, dodaj wiersz w tabeli swojego toru.
 | GET | `/monuments?category=&rarity=` | lista na mapę (lekka, bez opisów) – patrz `MonumentListItem` |
 | GET | `/monuments/:id` | szczegóły – patrz `MonumentDetails` |
 | POST | `/monuments/:id/visit` | `{ latitude, longitude }` → `VisitResponse`; `400`, gdy dalej niż `visitRadius` |
-| GET | `/profile` | własny profil: `displayName`, `visitedCount`, `totalMonuments`, `recentVisits[]`, `progression`, `achievements` (`unlockedCount`, `total`, `recent[]`) |
+| GET | `/profile` | własny profil: `displayName`, `visitedCount`, `totalMonuments`, `recentVisits[]`, `progression`, `achievements` (`unlockedCount`, `total`, `recent[]`), `showcase`, `friendCode`, `friendsCount`, `incomingRequests` |
 | GET | `/progression` | `{ totalXp, level, rank: {index, name}, levelStartXp, nextLevelXp, progress, perks: {discoveryRadius, showcaseSlots, radar}, nextUnlock }` |
 | GET | `/achievements` | `{ unlockedCount, total, achievements: [{ id, name, description, icon, group, groupLabel, tier, xp, secret, target, progress, unlocked, unlockedAt }] }` – sekretne nieodblokowane mają `name: "???"` |
 | POST | `/events` | `{ type: "WIKIPEDIA_OPENED", monumentId }` → `{ recorded, rewards }` (może odblokować „Mola książkowego”) |
-| GET | `/users/:id` | publiczny profil **bez e-maila**: `displayName, level, rank, totalXp, visitedCount, achievements, showcase, isMe` |
-| GET | `/users/leaderboard` | `{ totalPlayers, entries: [{ position, id, displayName, totalXp, visitedCount, level, rankIndex, rankName, isMe }], me }` (top 50 + pozycja oglądającego) |
+| GET | `/users/:id` | publiczny profil **bez e-maila**: `displayName, friendCode, level, rank, totalXp, visitedCount, achievements, showcase, isMe, friendStatus (NONE/OUTGOING/INCOMING/FRIENDS), isFriend` |
+| GET | `/users/leaderboard?scope=friends` | `{ totalPlayers, entries: [{ position, id, displayName, totalXp, visitedCount, level, rankIndex, rankName, isMe, isFriend }], me }` (top 50 + pozycja oglądającego); `scope=friends` – tylko znajomi i ja |
 | PATCH | `/users/me` | `{ displayName }` → `409`, gdy nazwa zajęta |
 | GET | `/showcase` | moja gablotka: `{ unlockedSlots, maxSlots, slots: [{ slot, locked, unlockLevel, monument: MonumentCard | null }] }` |
 | PUT | `/showcase/:slot` | `{ monumentId }` → `{ showcase, rewards }`; tylko odwiedzone (`400`), tylko odblokowane miejsca (`403`), duplikat = przeniesienie |
 | DELETE | `/showcase/:slot` | → `{ showcase }` |
-| GET | `/monuments/:id/comments?before=` | `{ total, visited, visitRadius, hasMore, comments: [{ id, body, createdAt, isMine, author: { id, displayName, level, rankIndex, rankName } }] }` |
+| GET | `/monuments/:id/comments?before=` | `{ total, visited, visitRadius, hasMore, comments: [{ id, body, createdAt, isMine, author: { id, displayName, level, rankIndex, rankName, isFriend } }] }` |
 | POST | `/monuments/:id/comments` | `{ body ≤ 500, latitude, longitude }` → `{ id, rewards }`; **tylko po wizycie I na miejscu** (`403`), maks. 1 na 10 s (`429`) |
 | DELETE | `/comments/:id` | tylko własne (`403`) |
+| GET | `/friends` | `{ myCode, friends[], incoming[], outgoing[] }`; element: `{ id, displayName, friendCode, level, rankIndex, rankName, totalXp, visitedCount }` |
+| POST | `/friends` | `{ code }` (np. `#K7Q2MX`, wielkość liter i # bez znaczenia) → `{ status: PENDING/ACCEPTED, message, rewards }`; `404` nieznany kod, `400` własny kod, `409` już znajomi / zaproszenie czeka; jeśli ta osoba zaprosiła nas wcześniej – od razu `ACCEPTED` |
+| POST | `/friends/:userId/accept` | akceptuje zaproszenie od `userId` → `{ status, message, rewards }` (`404`, gdy brak zaproszenia) |
+| DELETE | `/friends/:userId` | usuwa znajomego / odrzuca zaproszenie / anuluje wysłane → `{ removed: true }` |
 
 ### MonumentListItem
 ```jsonc

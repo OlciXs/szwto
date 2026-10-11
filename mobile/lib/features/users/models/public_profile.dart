@@ -1,12 +1,19 @@
 import '../../achievements/models/achievement.dart';
+import '../../friends/models/friend.dart';
 import '../../showcase/models/showcase.dart';
 
 /// Publiczny profil gracza (GET /users/:id) – bez e-maila.
 class PublicProfile {
   final int id;
   final String displayName;
+
+  /// Publiczny tag gracza (bez #) – po nim zapraszamy do znajomych.
+  final String friendCode;
   final DateTime createdAt;
   final bool isMe;
+
+  /// Relacja oglądającego z tym graczem (znajomi / zaproszenie / brak).
+  final FriendStatus friendStatus;
   final int level;
   final int rankIndex;
   final String rankName;
@@ -20,8 +27,10 @@ class PublicProfile {
   PublicProfile({
     required this.id,
     required this.displayName,
+    this.friendCode = '',
     required this.createdAt,
     required this.isMe,
+    this.friendStatus = FriendStatus.none,
     required this.level,
     required this.rankIndex,
     required this.rankName,
@@ -39,8 +48,10 @@ class PublicProfile {
     return PublicProfile(
       id: json['id'] as int,
       displayName: json['displayName'] as String,
+      friendCode: json['friendCode'] as String? ?? '',
       createdAt: DateTime.parse(json['createdAt'] as String).toLocal(),
       isMe: json['isMe'] as bool? ?? false,
+      friendStatus: FriendStatus.fromApi(json['friendStatus'] as String?),
       level: json['level'] as int? ?? 1,
       rankIndex: rank['index'] as int? ?? 0,
       rankName: rank['name'] as String? ?? 'Turysta',
@@ -54,6 +65,26 @@ class PublicProfile {
       showcase: Showcase.fromJson(json['showcase'] as Map<String, dynamic>? ?? const {}),
     );
   }
+
+  bool get isFriend => friendStatus == FriendStatus.friends;
+
+  PublicProfile copyWith({FriendStatus? friendStatus}) => PublicProfile(
+        id: id,
+        displayName: displayName,
+        friendCode: friendCode,
+        createdAt: createdAt,
+        isMe: isMe,
+        friendStatus: friendStatus ?? this.friendStatus,
+        level: level,
+        rankIndex: rankIndex,
+        rankName: rankName,
+        totalXp: totalXp,
+        visitedCount: visitedCount,
+        achievementsUnlocked: achievementsUnlocked,
+        achievementsTotal: achievementsTotal,
+        recentAchievements: recentAchievements,
+        showcase: showcase,
+      );
 }
 
 /// Wiersz rankingu (GET /users/leaderboard).
@@ -67,6 +98,7 @@ class LeaderboardEntry {
   final int rankIndex;
   final String rankName;
   final bool isMe;
+  final bool isFriend;
 
   LeaderboardEntry({
     required this.position,
@@ -78,6 +110,7 @@ class LeaderboardEntry {
     required this.rankIndex,
     required this.rankName,
     required this.isMe,
+    this.isFriend = false,
   });
 
   factory LeaderboardEntry.fromJson(Map<String, dynamic> json) => LeaderboardEntry(
@@ -90,6 +123,7 @@ class LeaderboardEntry {
         rankIndex: json['rankIndex'] as int? ?? 0,
         rankName: json['rankName'] as String? ?? 'Turysta',
         isMe: json['isMe'] as bool? ?? false,
+        isFriend: json['isFriend'] as bool? ?? false,
       );
 }
 

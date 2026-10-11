@@ -37,6 +37,9 @@ const _icons = <String, IconData>{
   'nightlight': Icons.nightlight,
   'wb_twilight': Icons.wb_twilight,
   'gavel': Icons.gavel,
+  'forum': Icons.forum,
+  'collections': Icons.collections_bookmark,
+  'group': Icons.group,
   'help': Icons.help_outline,
 };
 

@@ -12,6 +12,7 @@ import { ProfileModule } from './profile/profile.module';
 import { ProgressionModule } from './progression/progression.module';
 import { ShowcaseModule } from './showcase/showcase.module';
 import { UsersModule } from './users/users.module';
+import { FriendsModule } from './friends/friends.module';
 import { VisitsModule } from './visits/visits.module';
 
 /**
@@ -32,6 +33,7 @@ import { VisitsModule } from './visits/visits.module';
     AchievementsModule,
     // Tor D – społeczność
     UsersModule,
+    FriendsModule,
     ShowcaseModule,
     CommentsModule,
     // Tor E – gra

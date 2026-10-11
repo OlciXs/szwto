@@ -5,6 +5,9 @@ import '../../core/format.dart';
 import '../../core/widgets/error_view.dart';
 import '../achievements/achievement_style.dart';
 import '../achievements/widgets/rewards_dialog.dart';
+import '../friends/friend_actions.dart';
+import '../friends/models/friend.dart';
+import '../friends/widgets/friend_badge.dart';
 import '../showcase/widgets/showcase_section.dart';
 import 'models/public_profile.dart';
 import 'users_api.dart';
@@ -25,6 +28,7 @@ class PublicProfileScreen extends StatefulWidget {
 class _PublicProfileScreenState extends State<PublicProfileScreen> {
   PublicProfile? _profile;
   String? _error;
+  bool _busy = false;
 
   @override
   void initState() {
@@ -40,6 +44,31 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     }
+  }
+
+  /// Dodaj / akceptuj / anuluj / usuń – zależnie od obecnego statusu.
+  Future<void> _friendAction(PublicProfile p) async {
+    setState(() => _busy = true);
+    FriendStatus? next;
+    switch (p.friendStatus) {
+      case FriendStatus.none:
+        next = (await FriendActions.addByCode(context, p.friendCode))?.status;
+      case FriendStatus.incoming:
+        next = (await FriendActions.accept(context, p.id))?.status;
+      case FriendStatus.outgoing:
+        final ok = await FriendActions.remove(context, p.id,
+            successMessage: 'Anulowano zaproszenie.');
+        if (ok) next = FriendStatus.none;
+      case FriendStatus.friends:
+        final ok = await FriendActions.remove(context, p.id,
+            successMessage: 'Usunięto ze znajomych.', confirmName: p.displayName);
+        if (ok) next = FriendStatus.none;
+    }
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      if (next != null) _profile = p.copyWith(friendStatus: next);
+    });
   }
 
   @override
@@ -84,11 +113,26 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
           ),
         ),
         const SizedBox(height: 12),
-        Text(
-          p.displayName,
-          textAlign: TextAlign.center,
-          style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Flexible(
+              child: Text(
+                p.displayName,
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              ),
+            ),
+            if (p.isFriend) const FriendBadge(),
+          ],
         ),
+        if (p.friendCode.isNotEmpty)
+          Text(
+            '#${p.friendCode}',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodySmall?.copyWith(letterSpacing: 1.5),
+          ),
         Text(
           '${p.rankName} · poziom ${p.level}${p.isMe ? ' · to Ty' : ''}',
           textAlign: TextAlign.center,
@@ -99,6 +143,10 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
           textAlign: TextAlign.center,
           style: theme.textTheme.bodySmall,
         ),
+        if (!p.isMe) ...[
+          const SizedBox(height: 12),
+          Center(child: _FriendButton(status: p.friendStatus, busy: _busy, onPressed: () => _friendAction(p))),
+        ],
         const SizedBox(height: 20),
         Row(
           children: [
@@ -136,6 +184,43 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
         ],
       ],
     );
+  }
+}
+
+/// Przycisk relacji: Dodaj / Zaproszenie wysłane / Akceptuj / Znajomi.
+class _FriendButton extends StatelessWidget {
+  const _FriendButton({required this.status, required this.busy, required this.onPressed});
+
+  final FriendStatus status;
+  final bool busy;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final onTap = busy ? null : onPressed;
+    return switch (status) {
+      FriendStatus.none => FilledButton.icon(
+          onPressed: onTap,
+          icon: const Icon(Icons.person_add),
+          label: const Text('Dodaj do znajomych'),
+        ),
+      FriendStatus.incoming => FilledButton.icon(
+          onPressed: onTap,
+          icon: const Icon(Icons.how_to_reg),
+          label: const Text('Akceptuj zaproszenie'),
+        ),
+      FriendStatus.outgoing => OutlinedButton.icon(
+          onPressed: onTap,
+          icon: const Icon(Icons.schedule_send),
+          label: const Text('Zaproszenie wysłane · anuluj'),
+        ),
+      FriendStatus.friends => OutlinedButton.icon(
+          onPressed: onTap,
+          style: OutlinedButton.styleFrom(foregroundColor: FriendBadge.color),
+          icon: const Icon(Icons.group),
+          label: const Text('Znajomi · usuń'),
+        ),
+    };
   }
 }
 

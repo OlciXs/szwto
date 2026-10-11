@@ -22,6 +22,11 @@ class UserProfile {
   /// Tor D – gablotka (null przy starszym backendzie).
   final Showcase? showcase;
 
+  /// Znajomi – mój kod (np. K7Q2MX), liczba znajomych i oczekujących zaproszeń.
+  final String? friendCode;
+  final int friendsCount;
+  final int incomingRequests;
+
   UserProfile({
     required this.id,
     required this.email,
@@ -35,6 +40,9 @@ class UserProfile {
     this.achievementsTotal = 0,
     this.recentAchievements = const [],
     this.showcase,
+    this.friendCode,
+    this.friendsCount = 0,
+    this.incomingRequests = 0,
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
@@ -58,6 +66,9 @@ class UserProfile {
           .map((a) => AchievementBadge.fromJson(a as Map<String, dynamic>))
           .toList(),
       showcase: showcase != null ? Showcase.fromJson(showcase) : null,
+      friendCode: json['friendCode'] as String?,
+      friendsCount: json['friendsCount'] as int? ?? 0,
+      incomingRequests: json['incomingRequests'] as int? ?? 0,
     );
   }
 

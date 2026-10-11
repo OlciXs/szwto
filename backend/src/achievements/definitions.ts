@@ -46,6 +46,7 @@ export interface PlayerStats {
   /** Tor D – społeczność */
   commentsCount: number;
   showcaseCount: number;
+  friendsCount: number;
 }
 
 /** Liczności w bazie – żeby cele „wszystkie X” nie rozjechały się po imporcie. */
@@ -128,7 +129,7 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
   // ---------- Rodzaje zabytków ----------
   ...tiered({ id: 'sacral', name: 'Pielgrzym', describe: (n) => `Odwiedź ${n} obiektów sakralnych.`, icon: 'church', group: 'KATEGORIE', progress: category('SAKRALNY') }, [3, 10, 25]),
   ...tiered({ id: 'bridges', name: 'Miasto mostów', describe: (n) => (n ? `Odwiedź ${n} mostów.` : 'Odwiedź wszystkie mosty.'), icon: 'water', group: 'KATEGORIE', progress: category('MOST') }, [3, 6, (t) => t.byCategory.MOST ?? 0]),
-  ...tiered({ id: 'tenements', name: 'Kamienicznik', describe: (n) => `Odwiedź ${n} kamienic.`, icon: 'apartment', group: 'KATEGORIE', progress: category('KAMIENICA') }, [5, 25, 75]),
+  ...tiered({ id: 'tenements', name: 'Kamienicznik', describe: (n) => (n ? `Odwiedź ${n} kamienic.` : 'Odwiedź wszystkie kamienice.'), icon: 'apartment', group: 'KATEGORIE', progress: category('KAMIENICA') }, [3, 10, (t) => t.byCategory.KAMIENICA ?? 0]),
   ...tiered({ id: 'palaces', name: 'Pałacowy bywalec', describe: (n) => `Odwiedź ${n} pałaców lub willi.`, icon: 'castle', group: 'KATEGORIE', progress: category('PALAC') }, [3, 10, 20]),
   ...tiered({ id: 'monuments', name: 'Strażnik pamięci', describe: (n) => `Odwiedź ${n} pomników.`, icon: 'account_balance', group: 'KATEGORIE', progress: category('POMNIK') }, [3, 15, 40]),
   ...tiered({ id: 'art', name: 'Miłośnik sztuki', describe: (n) => `Odwiedź ${n} rzeźb lub fontann.`, icon: 'palette', group: 'KATEGORIE', progress: category('RZEZBA') }, [3, 8, 15]),
@@ -158,6 +159,8 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
   { id: 'marathon', name: 'Maraton', description: 'Odwiedź 5 zabytków jednego dnia.', icon: 'bolt', group: 'AKTYWNOSC', xp: 75, target: 5, progress: (s) => s.maxVisitsPerDay },
   { id: 'comment-1', name: 'Głos zabrany', description: 'Dodaj pierwszy komentarz pod zabytkiem.', icon: 'forum', group: 'AKTYWNOSC', xp: 50, target: 1, progress: (s) => s.commentsCount },
   { id: 'comment-10', name: 'Przewodnik forum', description: 'Dodaj 10 komentarzy pod zabytkami.', icon: 'forum', group: 'AKTYWNOSC', xp: 100, target: 10, progress: (s) => s.commentsCount },
+  { id: 'friends-1', name: 'Pierwszy znajomy', description: 'Dodaj pierwszego znajomego.', icon: 'group', group: 'AKTYWNOSC', xp: 25, target: 1, progress: (s) => s.friendsCount },
+  { id: 'friends-3', name: 'Towarzyski', description: 'Miej 3 znajomych w grze.', icon: 'group', group: 'AKTYWNOSC', xp: 75, target: 3, progress: (s) => s.friendsCount },
   { id: 'curator', name: 'Kurator', description: 'Wystaw 3 zabytki w swojej gablotce.', icon: 'collections', group: 'AKTYWNOSC', xp: 75, target: 3, progress: (s) => s.showcaseCount },
 
   // ---------- Sekretne ----------

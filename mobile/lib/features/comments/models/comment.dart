@@ -29,6 +29,7 @@ class CommentAuthor {
   final int level;
   final int rankIndex;
   final String rankName;
+  final bool isFriend;
 
   CommentAuthor({
     required this.id,
@@ -36,6 +37,7 @@ class CommentAuthor {
     required this.level,
     required this.rankIndex,
     required this.rankName,
+    this.isFriend = false,
   });
 
   factory CommentAuthor.fromJson(Map<String, dynamic> json) => CommentAuthor(
@@ -44,6 +46,7 @@ class CommentAuthor {
         level: json['level'] as int? ?? 1,
         rankIndex: json['rankIndex'] as int? ?? 0,
         rankName: json['rankName'] as String? ?? 'Turysta',
+        isFriend: json['isFriend'] as bool? ?? false,
       );
 }
 

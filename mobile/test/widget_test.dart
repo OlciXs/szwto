@@ -4,6 +4,7 @@ import 'package:zabytki_app/core/models/rarity.dart';
 import 'package:zabytki_app/features/achievements/models/achievement.dart';
 import 'package:zabytki_app/features/achievements/models/progression.dart';
 import 'package:zabytki_app/features/comments/models/comment.dart';
+import 'package:zabytki_app/features/friends/models/friend.dart';
 import 'package:zabytki_app/features/showcase/models/showcase.dart';
 import 'package:zabytki_app/features/users/models/public_profile.dart';
 import 'package:zabytki_app/features/monuments/models/monument.dart';
@@ -171,5 +172,52 @@ void main() {
     });
     expect(board.me?.position, 2);
     expect(board.entries.single.isMe, isFalse);
+    expect(board.entries.single.isFriend, isFalse);
+  });
+
+  test('Znajomi: kod, zaproszenia, status relacji i oznaczenia ZNAJOMY', () {
+    final overview = FriendsOverview.fromJson({
+      'myCode': 'K7Q2MX',
+      'friends': [
+        {'id': 2, 'displayName': 'Ola', 'friendCode': 'AB3CDE', 'level': 4, 'rankIndex': 1,
+         'rankName': 'Spacerowicz', 'totalXp': 300, 'visitedCount': 3},
+      ],
+      'incoming': [
+        {'id': 5, 'displayName': 'Kuba', 'friendCode': 'ZZ9XYW'},
+      ],
+      'outgoing': [],
+    });
+    expect(overview.myCode, 'K7Q2MX');
+    expect(overview.friends.single.totalXp, 300);
+    expect(overview.incoming.single.level, 1);
+    expect(overview.outgoing, isEmpty);
+
+    expect(FriendStatus.fromApi('FRIENDS'), FriendStatus.friends);
+    expect(FriendStatus.fromApi('INCOMING'), FriendStatus.incoming);
+    expect(FriendStatus.fromApi('PENDING'), FriendStatus.outgoing);
+    expect(FriendStatus.fromApi(null), FriendStatus.none);
+
+    final accepted = FriendActionResult.fromJson({
+      'status': 'ACCEPTED',
+      'message': 'Ola jest teraz Twoim znajomym!',
+      'rewards': {'progression': {'xpGained': 25, 'level': 2}, 'newAchievements': []},
+    });
+    expect(accepted.status, FriendStatus.friends);
+    expect(accepted.rewards?.xpGained, 25);
+    final pending = FriendActionResult.fromJson({'status': 'PENDING', 'message': 'ok', 'rewards': null});
+    expect(pending.rewards, isNull);
+
+    final profile = PublicProfile.fromJson({
+      'id': 2, 'displayName': 'Ola', 'friendCode': 'AB3CDE', 'createdAt': '2026-10-11T10:00:00.000Z',
+      'isMe': false, 'friendStatus': 'FRIENDS', 'level': 4, 'rank': {'index': 1, 'name': 'Spacerowicz'},
+    });
+    expect(profile.isFriend, isTrue);
+    expect(profile.copyWith(friendStatus: FriendStatus.none).isFriend, isFalse);
+    expect(profile.copyWith(friendStatus: FriendStatus.none).friendCode, 'AB3CDE');
+
+    final author = CommentAuthor.fromJson({'id': 2, 'displayName': 'Ola', 'isFriend': true});
+    expect(author.isFriend, isTrue);
+    final entry = LeaderboardEntry.fromJson({'position': 1, 'id': 2, 'displayName': 'Ola', 'isFriend': true});
+    expect(entry.isFriend, isTrue);
   });
 }

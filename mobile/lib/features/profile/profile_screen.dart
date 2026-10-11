@@ -9,6 +9,7 @@ import '../achievements/achievement_style.dart';
 import '../achievements/achievements_screen.dart';
 import '../achievements/widgets/level_card.dart';
 import '../achievements/widgets/rewards_dialog.dart';
+import '../friends/friends_screen.dart';
 import '../showcase/widgets/showcase_section.dart';
 import '../users/users_api.dart';
 import 'models/user_profile.dart';
@@ -98,6 +99,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 12),
           ],
           _AchievementsPreview(profile: profile, onChanged: _loadProfile),
+          const SizedBox(height: 12),
+          _FriendsCard(profile: profile, onChanged: _loadProfile),
           const SizedBox(height: 12),
           _StatsCard(profile: profile, colorScheme: colorScheme),
           const SizedBox(height: 24),
@@ -572,6 +575,51 @@ class _AchievementsPreview extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Znajomi – kod gracza, liczba znajomych i oczekujące zaproszenia
+// ---------------------------------------------------------------------------
+
+class _FriendsCard extends StatelessWidget {
+  const _FriendsCard({required this.profile, required this.onChanged});
+
+  final UserProfile profile;
+  final Future<void> Function() onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final pending = profile.incomingRequests;
+    final code = profile.friendCode;
+    return Card(
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        leading: Badge(
+          isLabelVisible: pending > 0,
+          label: Text('$pending'),
+          child: Icon(Icons.group, color: theme.colorScheme.primary),
+        ),
+        title: Text(
+          'Znajomi (${profile.friendsCount})',
+          style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        subtitle: Text(
+          [
+            if (code != null) 'Twój kod: #$code',
+            if (pending > 0) 'nowe zaproszenia: $pending',
+          ].join(' · '),
+        ),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () async {
+          await Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const FriendsScreen()),
+          );
+          await onChanged();
+        },
       ),
     );
   }
