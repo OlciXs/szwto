@@ -1,18 +1,23 @@
 import 'package:flutter/material.dart';
 
-import 'screens/login_screen.dart';
-import 'screens/map_screen.dart';
-import 'services/api_service.dart';
+import 'app_shell.dart';
+import 'core/api_client.dart';
+import 'core/routes.dart';
+import 'features/auth/login_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Próba wczytania sesji przed uruchomieniem aplikacji
   try {
-    await ApiService.instance.loadSession();
+    await ApiClient.instance.loadSession();
   } catch (e) {
     debugPrint('Błąd ładowania sesji: $e');
   }
+
+  // Wygasła sesja w dowolnym miejscu aplikacji -> ekran logowania
+  ApiClient.instance.onUnauthorized = () => navigatorKey.currentState
+      ?.pushNamedAndRemoveUntil(AppRoutes.login, (_) => false);
 
   runApp(const ZabytkiApp());
 }
@@ -25,14 +30,29 @@ class ZabytkiApp extends StatelessWidget {
     return MaterialApp(
       title: 'Odkrywca Zabytków',
       debugShowCheckedModeBanner: false,
+      navigatorKey: navigatorKey,
       theme: ThemeData(
         colorSchemeSeed: Colors.teal,
         useMaterial3: true,
       ),
-      // Dynamiczne przełączanie ekranu w zależności od stanu zalogowania
-      home: ApiService.instance.isLoggedIn
-          ? const MapScreen()
-          : const LoginScreen(),
+      // Zawsze jedna trasa startowa (initialRoute "/login" dokładałby pod spód "/",
+      // a na webie adres z paska przeglądarki tworzyłby dodatkowe ekrany).
+      onGenerateInitialRoutes: (_) => [
+        MaterialPageRoute(
+          settings: RouteSettings(
+            name: ApiClient.instance.isLoggedIn
+                ? AppRoutes.home
+                : AppRoutes.login,
+          ),
+          builder: (_) => ApiClient.instance.isLoggedIn
+              ? const AppShell()
+              : const LoginScreen(),
+        ),
+      ],
+      routes: {
+        AppRoutes.home: (_) => const AppShell(),
+        AppRoutes.login: (_) => const LoginScreen(),
+      },
     );
   }
 }

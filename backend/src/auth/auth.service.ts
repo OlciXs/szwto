@@ -6,7 +6,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
-import { AuthDto } from './dto/auth.dto';
+import { AuthDto, RegisterDto } from './dto/auth.dto';
 
 @Injectable()
 export class AuthService {
@@ -15,7 +15,7 @@ export class AuthService {
     private readonly jwt: JwtService,
   ) {}
 
-  async register(dto: AuthDto) {
+  async register(dto: RegisterDto) {
     const email = dto.email.trim().toLowerCase();
 
     const existing = await this.prisma.user.findUnique({ where: { email } });
@@ -25,10 +25,25 @@ export class AuthService {
       );
     }
 
-    const password = await bcrypt.hash(dto.password, 10);
-    const user = await this.prisma.user.create({ data: { email, password } });
+    let displayName: string;
+    if (dto.displayName) {
+      displayName = dto.displayName.trim();
+      const taken = await this.prisma.user.findUnique({
+        where: { displayName },
+      });
+      if (taken) {
+        throw new ConflictException('Ta nazwa gracza jest już zajęta');
+      }
+    } else {
+      displayName = await this.generateDisplayName(email);
+    }
 
-    return this.buildResponse(user.id, user.email);
+    const password = await bcrypt.hash(dto.password, 10);
+    const user = await this.prisma.user.create({
+      data: { email, password, displayName },
+    });
+
+    return this.buildResponse(user);
   }
 
   async login(dto: AuthDto) {
@@ -42,11 +57,43 @@ export class AuthService {
       throw new UnauthorizedException('Nieprawidłowy e-mail lub hasło');
     }
 
-    return this.buildResponse(user.id, user.email);
+    return this.buildResponse(user);
   }
 
-  private async buildResponse(id: number, email: string) {
-    const accessToken = await this.jwt.signAsync({ sub: id, email });
-    return { accessToken, user: { id, email } };
+  /** "jan.kowalski@x.pl" -> "jan.kowalski", przy kolizji dopisuje losowe cyfry. */
+  private async generateDisplayName(email: string): Promise<string> {
+    const base =
+      email
+        .split('@')[0]
+        .replace(/[^\p{L}\d_.-]/gu, '')
+        .slice(0, 18) || 'gracz';
+    const padded = base.length >= 3 ? base : `gracz_${base}`;
+
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const candidate =
+        attempt === 0
+          ? padded
+          : `${padded}_${Math.floor(1000 + Math.random() * 9000)}`;
+      const taken = await this.prisma.user.findUnique({
+        where: { displayName: candidate },
+      });
+      if (!taken) return candidate;
+    }
+    return `gracz_${Date.now()}`;
+  }
+
+  private async buildResponse(user: {
+    id: number;
+    email: string;
+    displayName: string;
+  }) {
+    const accessToken = await this.jwt.signAsync({
+      sub: user.id,
+      email: user.email,
+    });
+    return {
+      accessToken,
+      user: { id: user.id, email: user.email, displayName: user.displayName },
+    };
   }
 }

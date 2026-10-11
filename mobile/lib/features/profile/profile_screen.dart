@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 
-import '../models/user_profile.dart';
-import '../services/api_service.dart';
-import 'login_screen.dart';
+import '../../core/api_client.dart';
+import '../../core/format.dart';
+import '../../core/routes.dart';
+import '../../core/widgets/error_view.dart';
+import 'models/user_profile.dart';
+import 'profile_api.dart';
 
-String _formatDate(DateTime date) {
-  String two(int n) => n.toString().padLeft(2, '0');
-  return '${two(date.day)}.${two(date.month)}.${date.year}';
-}
-
+/// Własny profil. Sekcje innych torów (XP/poziom – B, gablotka – D,
+/// achievementy – B) dodajemy jako osobne widżety w liście poniżej.
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -17,8 +17,6 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final _api = ApiService.instance;
-
   UserProfile? _profile;
   bool _loading = true;
   String? _error;
@@ -36,30 +34,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
 
     try {
-      final profile = await _api.getProfile();
+      final profile = await ProfileApi.instance.getProfile();
       if (!mounted) return;
       setState(() => _profile = profile);
     } on ApiException catch (e) {
-      if (e.statusCode == 401) {
-        await _logout();
-        return;
-      }
       if (mounted) setState(() => _error = e.message);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
-
-  Future<void> _logout() async {
-    await _api.logout();
-    if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-      (_) => false,
-    );
-  }
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -67,42 +50,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mój profil'),
-      ),
-      body: _loading
+      appBar: AppBar(title: const Text('Mój profil')),
+      body: _loading && _profile == null
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? _buildError(theme)
+              ? ErrorView(message: _error!, onRetry: _loadProfile)
               : _profile != null
                   ? _buildProfileContent(theme, colorScheme, _profile!)
                   : const SizedBox.shrink(),
-    );
-  }
-
-  Widget _buildError(ThemeData theme) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.cloud_off, size: 64, color: theme.colorScheme.error),
-            const SizedBox(height: 16),
-            Text(
-              _error!,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyLarge,
-            ),
-            const SizedBox(height: 24),
-            FilledButton.icon(
-              onPressed: _loadProfile,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Spróbuj ponownie'),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -116,11 +71,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // ---------- Awatar i e-mail ----------
           _ProfileHeader(profile: profile, colorScheme: colorScheme),
           const SizedBox(height: 24),
-
-          // ---------- Statystyki ----------
           _StatsCard(profile: profile, colorScheme: colorScheme),
           const SizedBox(height: 24),
 
@@ -134,12 +86,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ?.copyWith(fontWeight: FontWeight.bold),
               ),
             ),
-            ...profile.recentVisits.map(
-              (visit) => _RecentVisitTile(visit: visit, colorScheme: colorScheme),
-            ),
+            ...profile.recentVisits.map((visit) => _RecentVisitTile(visit: visit)),
           ],
 
-          if (profile.recentVisits.isEmpty && profile.visitedCount == 0) ...[
+          if (profile.visitedCount == 0) ...[
             const SizedBox(height: 16),
             Card(
               child: Padding(
@@ -171,34 +121,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ],
 
-          // ---------- Sekcje placeholder na przyszłość ----------
+          // ---------- Sekcje innych torów ----------
           const SizedBox(height: 24),
           _FutureSectionCard(
-            icon: Icons.collections_bookmark_outlined,
-            title: 'Kolekcja zabytków',
-            subtitle: 'Wkrótce – tutaj pojawią się Twoje zebrane karty zabytków.',
-            colorScheme: colorScheme,
-          ),
-          const SizedBox(height: 12),
-          _FutureSectionCard(
-            icon: Icons.military_tech_outlined,
-            title: 'Tytuły i odznaczenia',
-            subtitle: 'Wkrótce – zdobywaj tytuły za odkrywanie nowych miejsc.',
+            icon: Icons.workspace_premium_outlined,
+            title: 'Gablotka',
+            subtitle: 'Wkrótce – wystaw swoje najlepsze karty dla innych graczy.',
             colorScheme: colorScheme,
           ),
           const SizedBox(height: 12),
           _FutureSectionCard(
             icon: Icons.emoji_events_outlined,
             title: 'Osiągnięcia',
-            subtitle: 'Wkrótce – odblokowuj osiągnięcia i dziel się postępami.',
+            subtitle: 'Wkrótce – odznaki za odkrywanie kolejnych typów zabytków.',
             colorScheme: colorScheme,
           ),
 
           const SizedBox(height: 32),
-
-          // ---------- Wyloguj ----------
           OutlinedButton.icon(
-            onPressed: _logout,
+            onPressed: logoutAndShowLogin,
             icon: const Icon(Icons.logout),
             label: const Text('Wyloguj się'),
             style: OutlinedButton.styleFrom(
@@ -215,7 +156,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 }
 
 // ---------------------------------------------------------------------------
-// Nagłówek profilu (awatar + e-mail + data rejestracji)
+// Nagłówek profilu (awatar + nazwa gracza + e-mail)
 // ---------------------------------------------------------------------------
 
 class _ProfileHeader extends StatelessWidget {
@@ -224,10 +165,12 @@ class _ProfileHeader extends StatelessWidget {
   final UserProfile profile;
   final ColorScheme colorScheme;
 
-  String _initials(String email) {
-    final local = email.split('@').first;
-    if (local.isEmpty) return '?';
-    return local.substring(0, local.length >= 2 ? 2 : 1).toUpperCase();
+  String get _initials {
+    final name = profile.displayName.isNotEmpty
+        ? profile.displayName
+        : profile.email.split('@').first;
+    if (name.isEmpty) return '?';
+    return name.substring(0, name.length >= 2 ? 2 : 1).toUpperCase();
   }
 
   @override
@@ -240,7 +183,7 @@ class _ProfileHeader extends StatelessWidget {
           radius: 44,
           backgroundColor: colorScheme.primaryContainer,
           child: Text(
-            _initials(profile.email),
+            _initials,
             style: theme.textTheme.headlineMedium?.copyWith(
               color: colorScheme.onPrimaryContainer,
               fontWeight: FontWeight.bold,
@@ -249,14 +192,14 @@ class _ProfileHeader extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         Text(
-          profile.email,
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w600,
+          profile.displayName,
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 2),
         Text(
-          'Dołączono: ${_formatDate(profile.createdAt)}',
+          '${profile.email} · dołączono ${formatDate(profile.createdAt)}',
           style: theme.textTheme.bodySmall?.copyWith(
             color: colorScheme.onSurfaceVariant,
           ),
@@ -279,7 +222,7 @@ class _StatsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final percent = (profile.progress * 100).round();
+    final percent = (profile.progress * 100).toStringAsFixed(1);
 
     return Card(
       child: Padding(
@@ -288,7 +231,7 @@ class _StatsCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Postęp odkrywania',
+              'Postęp odkrywania Wrocławia',
               style: theme.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -376,10 +319,7 @@ class _StatItem extends StatelessWidget {
             color: color,
           ),
         ),
-        Text(
-          label,
-          style: theme.textTheme.bodySmall,
-        ),
+        Text(label, style: theme.textTheme.bodySmall),
       ],
     );
   }
@@ -390,21 +330,23 @@ class _StatItem extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _RecentVisitTile extends StatelessWidget {
-  const _RecentVisitTile({required this.visit, required this.colorScheme});
+  const _RecentVisitTile({required this.visit});
 
   final RecentVisit visit;
-  final ColorScheme colorScheme;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final rarity = visit.rarity;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: Colors.green.shade50,
-          child: Icon(Icons.location_on, color: Colors.green.shade600),
+          backgroundColor: rarity.color.withAlpha(40),
+          foregroundImage:
+              visit.thumbUrl != null ? NetworkImage(visit.thumbUrl!) : null,
+          child: Icon(visit.category.icon, color: rarity.color),
         ),
         title: Text(
           visit.monumentName,
@@ -413,13 +355,15 @@ class _RecentVisitTile extends StatelessWidget {
           ),
         ),
         subtitle: Text(
-          _formatDate(visit.visitedAt),
+          '${formatDate(visit.visitedAt)} · ${rarity.label}',
           style: theme.textTheme.bodySmall,
         ),
-        trailing: Icon(
-          Icons.check_circle,
-          color: Colors.green.shade600,
-          size: 20,
+        trailing: Text(
+          '+${visit.xpEarned} XP',
+          style: TextStyle(
+            color: Colors.orange.shade800,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
     );
