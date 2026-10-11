@@ -4,6 +4,8 @@ import 'package:geolocator/geolocator.dart';
 import '../../core/api_client.dart';
 import '../../core/external_link.dart';
 import '../../core/widgets/error_view.dart';
+import '../achievements/achievements_api.dart';
+import '../achievements/widgets/rewards_dialog.dart';
 import '../comments/comments_section.dart';
 import 'models/monument.dart';
 import 'monuments_api.dart';
@@ -53,6 +55,18 @@ class _MonumentDetailScreenState extends State<MonumentDetailScreen> {
   void _onVisited(VisitResult result) {
     showVisitFeedback(context, result);
     _load(); // odblokowany opis
+  }
+
+  /// Otwiera artykuł i zgłasza zdarzenie – może odblokować „Mola książkowego” (tor B).
+  Future<void> _openWikipedia(String url) async {
+    await openExternalUrl(context, url);
+    try {
+      final rewards =
+          await AchievementsApi.instance.wikipediaOpened(widget.monument.id);
+      if (mounted && !rewards.isEmpty) await showRewards(context, rewards);
+    } on ApiException {
+      // Zdarzenie jest tylko bonusem – błąd nie przeszkadza w czytaniu.
+    }
   }
 
   @override
@@ -190,7 +204,7 @@ class _MonumentDetailScreenState extends State<MonumentDetailScreen> {
                     OutlinedButton.icon(
                       icon: const Icon(Icons.menu_book_outlined),
                       label: const Text('Czytaj na Wikipedii'),
-                      onPressed: () => openExternalUrl(context, details.wikipediaUrl!),
+                      onPressed: () => _openWikipedia(details.wikipediaUrl!),
                     ),
                   if (image != null)
                     TextButton.icon(

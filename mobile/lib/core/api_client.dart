@@ -136,6 +136,13 @@ class ApiClient {
       }
     }
 
+    // Trasa nie istnieje – backend jest starszy niż aplikacja (nowa funkcja
+    // jeszcze nie wdrożona, np. na Renderze przed mergem na main).
+    if (response.statusCode == 404 && message.startsWith('Cannot ')) {
+      message = 'Serwer (${AppConfig.apiBaseUrl}) nie ma jeszcze tej funkcji – '
+          'wdróż najnowszą wersję backendu albo uruchom aplikację z lokalnym backendem.';
+    }
+
     // Wygasły token – czyścimy sesję i wracamy do logowania.
     // (401 przy logowaniu złym hasłem nie ma tokenu, więc tu nie trafia.)
     if (response.statusCode == 401 && _token != null) {

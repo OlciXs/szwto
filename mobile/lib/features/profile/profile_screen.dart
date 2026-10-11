@@ -5,6 +5,10 @@ import '../../core/demo_mode.dart';
 import '../../core/format.dart';
 import '../../core/routes.dart';
 import '../../core/widgets/error_view.dart';
+import '../achievements/achievement_style.dart';
+import '../achievements/achievements_screen.dart';
+import '../achievements/widgets/level_card.dart';
+import '../achievements/widgets/rewards_dialog.dart';
 import 'models/user_profile.dart';
 import 'profile_api.dart';
 
@@ -74,6 +78,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           _ProfileHeader(profile: profile, colorScheme: colorScheme),
           const SizedBox(height: 24),
+          if (profile.progression != null) ...[
+            LevelCard(progression: profile.progression!),
+            const SizedBox(height: 12),
+          ],
+          _AchievementsPreview(profile: profile, onChanged: _loadProfile),
+          const SizedBox(height: 12),
           _StatsCard(profile: profile, colorScheme: colorScheme),
           const SizedBox(height: 24),
 
@@ -130,13 +140,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             subtitle: 'Wkrótce – wystaw swoje najlepsze karty dla innych graczy.',
             colorScheme: colorScheme,
           ),
-          const SizedBox(height: 12),
-          _FutureSectionCard(
-            icon: Icons.emoji_events_outlined,
-            title: 'Osiągnięcia',
-            subtitle: 'Wkrótce – odznaki za odkrywanie kolejnych typów zabytków.',
-            colorScheme: colorScheme,
-          ),
 
           const SizedBox(height: 24),
           const _DemoModeCard(),
@@ -181,19 +184,44 @@ class _ProfileHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    final progression = profile.progression;
+
     return Column(
       children: [
-        CircleAvatar(
-          radius: 44,
-          backgroundColor: colorScheme.primaryContainer,
-          child: Text(
-            _initials,
-            style: theme.textTheme.headlineMedium?.copyWith(
-              color: colorScheme.onPrimaryContainer,
-              fontWeight: FontWeight.bold,
+        // Ramka awatara w kolorze rangi (nagroda za poziom)
+        Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: progression != null
+                  ? rankColor(progression.rankIndex)
+                  : colorScheme.outlineVariant,
+              width: 4,
+            ),
+          ),
+          child: CircleAvatar(
+            radius: 44,
+            backgroundColor: colorScheme.primaryContainer,
+            child: Text(
+              _initials,
+              style: theme.textTheme.headlineMedium?.copyWith(
+                color: colorScheme.onPrimaryContainer,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ),
+        if (progression != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            '${progression.rankName} · poziom ${progression.level}',
+            style: TextStyle(
+              color: rankColor(progression.rankIndex),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
         const SizedBox(height: 12),
         Text(
           profile.displayName,
@@ -368,6 +396,69 @@ class _RecentVisitTile extends StatelessWidget {
             color: Colors.orange.shade800,
             fontWeight: FontWeight.bold,
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Osiągnięcia – podgląd ostatnich + przejście do pełnej listy (tor B)
+// ---------------------------------------------------------------------------
+
+class _AchievementsPreview extends StatelessWidget {
+  const _AchievementsPreview({required this.profile, required this.onChanged});
+
+  final UserProfile profile;
+  final Future<void> Function() onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.emoji_events, color: Colors.amber.shade700),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Osiągnięcia ${profile.achievementsUnlocked}/${profile.achievementsTotal}',
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            if (profile.recentAchievements.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  'Odwiedź pierwszy zabytek, aby zdobyć pierwszą odznakę.',
+                  style: theme.textTheme.bodySmall,
+                ),
+              )
+            else
+              for (final badge in profile.recentAchievements)
+                AchievementBadgeTile(badge: badge),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                icon: const Icon(Icons.chevron_right),
+                label: const Text('Zobacz wszystkie'),
+                onPressed: () async {
+                  await Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const AchievementsScreen()),
+                  );
+                  await onChanged();
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -11,6 +11,9 @@ import '../../core/demo_mode.dart';
 import '../../core/location.dart';
 import '../../core/models/monument_category.dart';
 import '../../core/widgets/error_banner.dart';
+import '../achievements/achievement_style.dart';
+import '../achievements/achievements_api.dart';
+import '../achievements/models/progression.dart';
 import '../monuments/models/monument.dart';
 import '../monuments/monument_detail_screen.dart';
 import '../monuments/monuments_api.dart';
@@ -37,6 +40,9 @@ class _MapScreenState extends State<MapScreen> {
   final _demo = DemoMode.instance;
 
   List<Monument> _monuments = [];
+
+  /// Poziom gracza – zasięg perełek i radar to nagrody za poziom (tor B).
+  Progression? _progression;
   Position? _gpsPosition;
   StreamSubscription<Position>? _positionSub;
   Set<MonumentCategory> _categoryFilter = {};
@@ -49,6 +55,22 @@ class _MapScreenState extends State<MapScreen> {
   /// Pozycja gracza: „teleport” w trybie demo, inaczej GPS.
   Position? get _position => _demo.isActive ? _demo.position.value : _gpsPosition;
 
+  double get _discoveryRadius =>
+      _progression?.perks.discoveryRadius ?? AppConfig.discoveryRadiusMeters;
+
+  static const _radarRadius = 1000.0;
+
+  Future<void> _loadProgression() async {
+    try {
+      final progression = await AchievementsApi.instance.getProgression();
+      if (!mounted) return;
+      setState(() => _progression = progression);
+      _scan(); // zasięg mógł wzrosnąć
+    } on ApiException {
+      // Bez poziomu działamy na domyślnym zasięgu.
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -59,6 +81,7 @@ class _MapScreenState extends State<MapScreen> {
 
   Future<void> _init() async {
     await _discovery.load();
+    _loadProgression();
     await _loadMonuments();
     _startLocationUpdates();
   }
@@ -98,7 +121,11 @@ class _MapScreenState extends State<MapScreen> {
     final position = _position;
     if (position == null || _monuments.isEmpty) return;
 
-    final found = await _discovery.scan(position, _monuments);
+    final found = await _discovery.scan(
+      position,
+      _monuments,
+      radius: _discoveryRadius,
+    );
     if (!mounted || found.isEmpty) return;
     setState(() {});
 
@@ -210,7 +237,8 @@ class _MapScreenState extends State<MapScreen> {
 
     if (result is VisitResult) {
       setState(() {}); // pinezka zmienia kolor
-      showVisitFeedback(context, result);
+      await showVisitFeedback(context, result);
+      _loadProgression(); // nowy poziom = większy zasięg perełek
     } else if (result == MonumentSheetAction.openDetails) {
       await Navigator.of(context).push(
         MaterialPageRoute(
@@ -218,7 +246,9 @@ class _MapScreenState extends State<MapScreen> {
               MonumentDetailScreen(monument: monument, position: _position),
         ),
       );
-      if (mounted) setState(() {}); // mógł zostać odwiedzony na ekranie szczegółów
+      if (!mounted) return;
+      setState(() {}); // mógł zostać odwiedzony na ekranie szczegółów
+      _loadProgression();
     }
   }
 
@@ -248,8 +278,31 @@ class _MapScreenState extends State<MapScreen> {
     final majorsVisited = majors.where((m) => m.visited).length;
     final minorsFound = _discovery.discoveredMinorCount(_monuments);
 
+    final progression = _progression;
+    final radarCount = progression != null && progression.perks.radar && position != null
+        ? _discovery.hiddenNearby(position, _monuments, _radarRadius)
+        : null;
+
     return Scaffold(
       appBar: AppBar(
+        leading: progression == null
+            ? null
+            : Tooltip(
+                message: 'Poziom ${progression.level} · ${progression.rankName}',
+                child: Center(
+                  child: CircleAvatar(
+                    radius: 17,
+                    backgroundColor: rankColor(progression.rankIndex),
+                    child: Text(
+                      '${progression.level}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
         title: const Text('Odkrywca Zabytków'),
         actions: [
           if (_monuments.isNotEmpty)
@@ -303,7 +356,7 @@ class _MapScreenState extends State<MapScreen> {
                   circles: [
                     CircleMarker(
                       point: LatLng(position.latitude, position.longitude),
-                      radius: AppConfig.discoveryRadiusMeters,
+                      radius: _discoveryRadius,
                       useRadiusInMeter: true,
                       color: theme.colorScheme.primary.withAlpha(20),
                       borderColor: theme.colorScheme.primary.withAlpha(90),
@@ -361,6 +414,27 @@ class _MapScreenState extends State<MapScreen> {
                 categories: _presentCategories,
                 selected: _categoryFilter,
                 onChanged: (value) => setState(() => _categoryFilter = value),
+              ),
+            ),
+          if (radarCount != null && radarCount > 0)
+            Positioned(
+              top: 58,
+              left: 12,
+              child: Material(
+                color: Colors.purple.shade50,
+                elevation: 2,
+                borderRadius: BorderRadius.circular(20),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.radar, size: 18, color: Colors.purple.shade400),
+                      const SizedBox(width: 6),
+                      Text('Radar: $radarCount ukrytych perełek w promieniu 1 km'),
+                    ],
+                  ),
+                ),
               ),
             ),
           if (_loading)

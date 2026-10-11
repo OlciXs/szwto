@@ -69,6 +69,8 @@ model User {
   visited      UserVisited[]
   showcase     ShowcaseSlot[]
   comments     Comment[]
+  achievements UserAchievement[]
+  events       UserEvent[]
   duelsCreated Duel[]         @relation("DuelCreator")
   duelsJoined  Duel[]         @relation("DuelOpponent")
 }
@@ -144,6 +146,35 @@ model UserVisited {
   // Użytkownik może odwiedzić dany zabytek tylko raz
   @@unique([userId, monumentId])
   @@index([monumentId])
+}
+
+// ---------- Osiągnięcia (#5) ----------
+
+/// Odblokowane osiągnięcie. Definicje są w kodzie (src/achievements/definitions.ts).
+model UserAchievement {
+  id            Int      @id @default(autoincrement())
+  userId        Int
+  achievementId String
+  unlockedAt    DateTime @default(now())
+  /// Premia XP przyznana w chwili odblokowania (wlicza się do poziomu)
+  xpReward      Int      @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+}
+
+/// Zdarzenia gracza liczone przez osiągnięcia, np. WIKIPEDIA_OPENED.
+model UserEvent {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  type       String
+  monumentId Int?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
 }
 
 // ---------- Gablotka (#4) ----------
