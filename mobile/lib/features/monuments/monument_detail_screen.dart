@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../../core/api_client.dart';
+import '../../core/external_link.dart';
 import '../../core/widgets/error_view.dart';
 import '../comments/comments_section.dart';
 import 'models/monument.dart';
@@ -131,6 +132,14 @@ class _MonumentDetailScreenState extends State<MonumentDetailScreen> {
                 style: theme.textTheme.bodySmall
                     ?.copyWith(color: scheme.onSurfaceVariant),
               ),
+              if (details.summary != null && details.descriptionLocked) ...[
+                const SizedBox(height: 16),
+                Text(
+                  details.summary!,
+                  style: theme.textTheme.bodyLarge
+                      ?.copyWith(fontStyle: FontStyle.italic),
+                ),
+              ],
               const SizedBox(height: 20),
               VisitButton(
                 monument: widget.monument,
@@ -149,31 +158,48 @@ class _MonumentDetailScreenState extends State<MonumentDetailScreen> {
                   color: scheme.surfaceContainerLow,
                   child: ListTile(
                     leading: Icon(Icons.lock_outline, color: scheme.primary),
-                    title: const Text('Opis zablokowany'),
-                    subtitle: const Text(
-                      'Odwiedź to miejsce, aby odblokować jego historię.',
+                    title: const Text('Historia zablokowana'),
+                    subtitle: Text(
+                      'Podejdź na ${widget.monument.visitRadius} m i odznacz to miejsce, '
+                      'aby poznać jego pełną historię.',
                     ),
                   ),
                 )
               else ...[
-                Text(details.description ?? '', style: theme.textTheme.bodyMedium),
-                const SizedBox(height: 8),
+                for (final paragraph in details.paragraphs)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(
+                      paragraph,
+                      style: theme.textTheme.bodyMedium?.copyWith(height: 1.5),
+                    ),
+                  ),
                 if (details.descriptionSource == 'wikipedia')
-                  SelectableText(
-                    'Źródło: Wikipedia (CC BY-SA 4.0)'
-                    '${details.wikipediaUrl != null ? '\n${Uri.decodeFull(details.wikipediaUrl!)}' : ''}',
+                  Text(
+                    'Źródło: Wikipedia (CC BY-SA 4.0)',
                     style: theme.textTheme.bodySmall
                         ?.copyWith(color: scheme.onSurfaceVariant),
                   ),
               ],
-              if (image != null) ...[
-                const SizedBox(height: 8),
-                SelectableText(
-                  'Fot.: Wikimedia Commons – autor i licencja:\n${Uri.decodeFull(image.pageUrl)}',
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: scheme.onSurfaceVariant),
-                ),
-              ],
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  if (details.wikipediaUrl != null)
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.menu_book_outlined),
+                      label: const Text('Czytaj na Wikipedii'),
+                      onPressed: () => openExternalUrl(context, details.wikipediaUrl!),
+                    ),
+                  if (image != null)
+                    TextButton.icon(
+                      icon: const Icon(Icons.photo_camera_outlined, size: 18),
+                      label: const Text('Autor i licencja zdjęcia'),
+                      onPressed: () => openExternalUrl(context, image.pageUrl),
+                    ),
+                ],
+              ),
               const SizedBox(height: 24),
               CommentsSection(monumentId: widget.monument.id),
             ],

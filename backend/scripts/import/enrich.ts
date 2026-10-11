@@ -166,6 +166,16 @@ export function assignRarities<T extends RarityInput & { externalId: string }>(
   return result;
 }
 
+// ---------- Zabytki główne / ukryte perełki ----------
+
+/**
+ * Główne zabytki (Major POI) są zawsze widoczne na mapie; pozostałe to ukryte
+ * perełki, które pojawiają się dopiero w zasięgu gracza (aplikacja).
+ */
+export function isMajorRarity(rarity: Rarity): boolean {
+  return rarity === Rarity.LEGENDARY || rarity === Rarity.EPIC;
+}
+
 // ---------- XP (#1) ----------
 
 export const RARITY_XP: Record<Rarity, number> = {
@@ -198,7 +208,7 @@ const CATEGORY_RADIUS: Record<MonumentCategory, number> = {
   PARK: 150,
   PUBLICZNY: 75,
   TECHNICZNY: 75,
-  ARCHITEKTURA: 60,
+  ARCHITEKTURA: 50,
 };
 
 const HUGE_AREA = /układ urbanistyczny|stare miasto|port lotniczy|osiedle|wielki zespół|ogród zoologiczny/;

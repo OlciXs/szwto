@@ -22,6 +22,7 @@ Dopisując endpoint, dodaj wiersz w tabeli swojego toru.
   "category": "PUBLICZNY",          // KAMIENICA | PALAC | SAKRALNY | MOST | POMNIK | RZEZBA | PARK | PUBLICZNY | TECHNICZNY | ARCHITEKTURA
   "rawType": "ratusz",
   "rarity": "LEGENDARY",            // COMMON | RARE | EPIC | LEGENDARY
+  "isMajor": true,                  // zabytek główny (zawsze na mapie); false = ukryta perełka
   "latitude": 51.1096, "longitude": 17.0318,
   "thumbUrl": "https://upload.wikimedia.org/...330px-....jpg",   // lub null
   "builtYear": 1250, "builtLabel": "XIII wiek",
@@ -35,7 +36,8 @@ Dopisując endpoint, dodaj wiersz w tabeli swojego toru.
 ```jsonc
 {
   "teaser": "Ratusz · XIII wiek",
-  "description": null,              // pełny opis dopiero po wizycie (#6)
+  "summary": "Stary Ratusz we Wrocławiu – późnogotycki budynek…",  // zajawka, widoczna zawsze
+  "description": null,              // długi opis (akapity "\n\n") dopiero po wizycie (#6)
   "descriptionLocked": true,
   "descriptionSource": "wikipedia", // lub "generated"
   "address": "Rynek Ratusz 1 50-116 Wrocław",

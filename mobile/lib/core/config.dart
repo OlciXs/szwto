@@ -10,4 +10,7 @@ class AppConfig {
   static const double initialLatitude = 51.1100;
   static const double initialLongitude = 17.0320;
   static const double initialZoom = 14;
+
+  /// Zasięg „skanowania” – ukryte perełki pojawiają się na mapie w tym promieniu.
+  static const double discoveryRadiusMeters = 250;
 }

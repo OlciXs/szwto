@@ -81,7 +81,9 @@ model Monument {
   externalId        String           @unique
   source            MonumentSource   @default(MANUAL)
   name              String
-  /// Pełny opis (pokazywany po odwiedzeniu)
+  /// Zajawka (1–2 zdania) – widoczna przed odwiedzeniem
+  summary           String?
+  /// Długi opis historyczny – pokazywany po odwiedzeniu
   description       String?
   /// "wikipedia" | "generated"
   descriptionSource String?
@@ -104,6 +106,8 @@ model Monument {
   fame              Int              @default(0)
   wikipediaUrl      String?
   rarity            Rarity           @default(COMMON)
+  /// Zabytek główny – zawsze widoczny na mapie (pozostałe to ukryte perełki)
+  isMajor           Boolean          @default(false)
   xp                Int              @default(10)
   /// Promień (m), w którym można odznaczyć obiekt
   visitRadius       Int              @default(50)
@@ -114,6 +118,14 @@ model Monument {
 
   @@index([category])
   @@index([city])
+}
+
+// ---------- Metadane aplikacji (np. wersja wgranego snapshotu) ----------
+
+model AppMeta {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
 }
 
 // ---------- Wizyty (#1 XP) ----------

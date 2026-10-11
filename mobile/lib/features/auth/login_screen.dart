@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../core/api_client.dart';
@@ -25,8 +27,13 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscure = true;
   String? _error;
 
+  /// Żądanie trwa długo – zwykle uśpiony serwer na darmowym Renderze.
+  bool _slow = false;
+  Timer? _slowTimer;
+
   @override
   void dispose() {
+    _slowTimer?.cancel();
     _emailController.dispose();
     _passwordController.dispose();
     _displayNameController.dispose();
@@ -38,7 +45,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() {
       _busy = true;
+      _slow = false;
       _error = null;
+    });
+    _slowTimer = Timer(const Duration(seconds: 5), () {
+      if (mounted && _busy) setState(() => _slow = true);
     });
 
     try {
@@ -64,7 +75,13 @@ class _LoginScreenState extends State<LoginScreen> {
             'Nieoczekiwany błąd ($e). Czy backend pod ${AppConfig.apiBaseUrl} ma aktualną wersję?');
       }
     } finally {
-      if (mounted) setState(() => _busy = false);
+      _slowTimer?.cancel();
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _slow = false;
+        });
+      }
     }
   }
 
@@ -196,6 +213,15 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                       ),
                     ),
+                    if (_slow) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        'Serwer się wybudza – pierwsze połączenie po dłuższej '
+                        'przerwie może potrwać do minuty…',
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ],
                     const SizedBox(height: 8),
                     TextButton(
                       onPressed: _busy

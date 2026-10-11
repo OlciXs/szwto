@@ -24,6 +24,7 @@ void main() {
     });
 
     expect(monument.id, 7);
+    expect(monument.isMajor, isTrue); // brak pola (stary backend) -> widoczny
     expect(monument.category, MonumentCategory.publiczny);
     expect(monument.rarity, Rarity.legendary);
     expect(monument.visited, isTrue);
@@ -76,7 +77,29 @@ void main() {
 
     expect(details.descriptionLocked, isTrue);
     expect(details.description, isNull);
+    expect(details.paragraphs, isEmpty);
     expect(details.image?.pageUrl, contains('commons'));
     expect(details.monument.rarity, Rarity.epic);
+  });
+
+  test('MonumentDetails: zajawka zawsze, długi opis w akapitach po wizycie', () {
+    final details = MonumentDetails.fromJson({
+      'id': 9,
+      'name': 'Ratusz',
+      'category': 'PUBLICZNY',
+      'rarity': 'LEGENDARY',
+      'isMajor': true,
+      'latitude': 51.11,
+      'longitude': 17.03,
+      'visited': true,
+      'teaser': 'Ratusz · XIII wiek',
+      'summary': 'Późnogotycki budynek na wrocławskim Rynku.',
+      'description': 'Akapit pierwszy.\n\nAkapit drugi.\n\n\nAkapit trzeci.',
+      'descriptionLocked': false,
+    });
+
+    expect(details.monument.isMajor, isTrue);
+    expect(details.summary, startsWith('Późnogotycki'));
+    expect(details.paragraphs, ['Akapit pierwszy.', 'Akapit drugi.', 'Akapit trzeci.']);
   });
 }
