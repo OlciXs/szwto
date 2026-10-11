@@ -18,8 +18,24 @@ const CONCURRENCY = 2;
 const MAX_ATTEMPTS = 5;
 
 const SUMMARY_MAX = 300;
-/** ~4 min czytania; ok. 85% artykułów mieści się w całości (bez przypisów itp.). */
-const DESCRIPTION_MAX = 6000;
+/** Decyzja zespołu: zwięźle – maks. 5 akapitów (~2 min czytania). */
+const DESCRIPTION_MAX_PARAGRAPHS = 5;
+const DESCRIPTION_MAX = 3500;
+const FUN_FACT_MAX = 320;
+
+/**
+ * Słowa zapowiadające ciekawostkę (waga). Zdanie z najwyższym wynikiem,
+ * spoza opisu, zostaje „ciekawostką” przy zabytku.
+ */
+const FUN_FACT_HINTS: [RegExp, number][] = [
+  [/legend|podobno|według podań|mówi się|przesąd|klątw|duch/i, 4],
+  [/najstarsz|największ|najwyższ|najdłuższ|najcenniejsz|najmniejsz|najpiękniejsz/i, 4],
+  [/jedyn[ayoe]|unikat|rekord|pierwsz[ayoe] w|pierwszy raz/i, 3],
+  [/ciekawostk|zaskakuj|nietypow|osobliw|tajemnic|zagadk|skarb|ukryt/i, 3],
+  [/film|serial|kręcono|piosenk|powieś|poet|pisarz|malarz|kompozytor/i, 2],
+  [/nazywan|przezwisk|potoczn|zwan[aeyo]/i, 2],
+  [/wojn|oblężeni|bombardowa|powódź|pożar/i, 1],
+];
 
 /** Sekcje opowiadające historię obiektu – trafiają do opisu w pierwszej kolejności. */
 const HISTORY_SECTION = /histori|dzieje|budow|powstan|losy|po 1945|okres|czasy|wiek/i;
@@ -34,6 +50,8 @@ type Cache = Record<string, string | null>;
 export interface ArticleText {
   summary: string;
   description: string;
+  /** Zdanie-ciekawostka spoza opisu (null, gdy nic nie pasuje). */
+  funFact: string | null;
 }
 
 // ---------- Cache ----------
@@ -170,10 +188,11 @@ export function buildArticleText(extract: string): ArticleText | null {
     ...rest.flatMap((c) => c.paragraphs),
   ];
 
-  // Akapity dokładamy w całości, ostatni ewentualnie przycinamy do pełnych zdań
+  // Akapity dokładamy w całości (maks. 5), ostatni ewentualnie przycinamy do pełnych zdań
   const paragraphs: string[] = [];
   let length = 0;
   for (const paragraph of candidates) {
+    if (paragraphs.length >= DESCRIPTION_MAX_PARAGRAPHS) break;
     const remaining = DESCRIPTION_MAX - length;
     if (remaining < 200) break;
     if (paragraph.length <= remaining) {
@@ -184,12 +203,55 @@ export function buildArticleText(extract: string): ArticleText | null {
       break;
     }
   }
+  const description = paragraphs.join('\n\n');
 
   const firstParagraph = lead[0] ?? candidates[0] ?? '';
   return {
     summary: cutToSentences(firstParagraph, SUMMARY_MAX),
-    description: paragraphs.join('\n\n'),
+    description,
+    funFact: pickFunFact(candidates, description),
   };
+}
+
+/** Dzieli akapit na zdania (z tą samą obsługą skrótów co przycinanie). */
+function splitSentences(paragraph: string): string[] {
+  const sentences: string[] = [];
+  let start = 0;
+  for (const end of sentenceEnds(paragraph)) {
+    sentences.push(paragraph.slice(start, end).trim());
+    start = end;
+  }
+  sentences.push(paragraph.slice(start).trim());
+  return sentences.filter((s) => s.length > 0);
+}
+
+/**
+ * Ciekawostka: najlepiej punktowane zdanie z całego artykułu, którego NIE ma
+ * już w opisie. Odrzucamy zdania zbyt krótkie/długie i zaczynające się od zaimka
+ * (bez kontekstu brzmią dziwnie, np. „Jego wnętrze…”).
+ */
+function pickFunFact(paragraphs: string[], description: string): string | null {
+  let best: { sentence: string; score: number } | null = null;
+  for (const paragraph of paragraphs) {
+    for (const sentence of splitSentences(paragraph)) {
+      if (sentence.length < 50 || sentence.length > FUN_FACT_MAX) continue;
+      if (description.includes(sentence)) continue;
+      if (/^(jego|jej|ich|ten|ta|to|te|on|ona|oni|tam|tu|w nim|w niej)\b/i.test(sentence)) continue;
+      // tylko pełne zdania: wielka litera na początku (nie liczba rzymska typu „XX w.”),
+      // kropka na końcu, domknięte nawiasy i cudzysłowy
+      if (!/^[A-ZĄĆĘŁŃÓŚŹŻ„"]/.test(sentence) || /^[IVXLC]+\b/.test(sentence)) continue;
+      if (!/[.!?]$/.test(sentence)) continue;
+      const count = (ch: string) => sentence.split(ch).length - 1;
+      if (count('(') !== count(')') || count('„') !== count('”')) continue;
+      let score = 0;
+      for (const [pattern, weight] of FUN_FACT_HINTS) {
+        if (pattern.test(sentence)) score += weight;
+      }
+      if (/\d/.test(sentence)) score += 0.5;
+      if (score >= 3 && (!best || score > best.score)) best = { sentence, score };
+    }
+  }
+  return best?.sentence ?? null;
 }
 
 // ---------- API modułu ----------

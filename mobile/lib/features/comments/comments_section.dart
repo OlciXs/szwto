@@ -5,6 +5,7 @@ import '../../core/format.dart';
 import '../../core/location.dart';
 import '../achievements/achievement_style.dart';
 import '../achievements/widgets/rewards_dialog.dart';
+import '../friends/widgets/friend_badge.dart';
 import '../monuments/models/monument.dart';
 import '../users/public_profile_screen.dart';
 import 'comments_api.dart';
@@ -287,6 +288,7 @@ class _CommentTile extends StatelessWidget {
                         style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                     ),
+                    if (author.isFriend) const FriendBadge(compact: true, margin: EdgeInsets.zero),
                     Text(
                       'poz. ${author.level} · ${author.rankName}',
                       style: TextStyle(color: color, fontSize: 12),

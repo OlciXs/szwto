@@ -10,11 +10,19 @@ class CardPreviewDialog extends StatelessWidget {
 
   final Monument monument;
 
-  static void show(BuildContext context, Monument monument) {
-    showDialog<void>(
+  /// Kończy się dopiero po zamknięciu okna i ewentualnego ekranu szczegółów –
+  /// kolekcja może się wtedy odświeżyć (np. po odznaczeniu zabytku).
+  static Future<void> show(BuildContext context, Monument monument) async {
+    final navigator = Navigator.of(context);
+    final openDetails = await showDialog<bool>(
       context: context,
       builder: (_) => CardPreviewDialog(monument: monument),
     );
+    if (openDetails == true) {
+      await navigator.push(
+        MaterialPageRoute(builder: (_) => MonumentDetailScreen(monument: monument)),
+      );
+    }
   }
 
   @override
@@ -56,15 +64,8 @@ class CardPreviewDialog extends StatelessWidget {
                           borderRadius: BorderRadius.circular(24),
                         ),
                       ),
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                MonumentDetailScreen(monument: monument),
-                          ),
-                        );
-                      },
+                      // Szczegóły otwiera show() po zamknięciu okna
+                      onPressed: () => Navigator.of(context).pop(true),
                       icon: const Icon(Icons.menu_book_rounded),
                       label: const Text(
                         'Zobacz opis i historię',

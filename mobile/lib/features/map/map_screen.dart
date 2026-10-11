@@ -121,14 +121,16 @@ class _MapScreenState extends State<MapScreen> {
     final position = _position;
     if (position == null || _monuments.isEmpty) return;
 
-    final found = await _discovery.scan(
+    final result = await _discovery.scan(
       position,
       _monuments,
       radius: _discoveryRadius,
     );
-    if (!mounted || found.isEmpty) return;
-    setState(() {});
+    if (!mounted) return;
+    if (result.changed) setState(() {}); // perełki pojawiły się / zniknęły
 
+    final found = result.firstSeen;
+    if (found.isEmpty) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -276,7 +278,7 @@ class _MapScreenState extends State<MapScreen> {
     final majors = _monuments.where((m) => m.isMajor).toList();
     final minorsTotal = _monuments.length - majors.length;
     final majorsVisited = majors.where((m) => m.visited).length;
-    final minorsFound = _discovery.discoveredMinorCount(_monuments);
+    final minorsFound = _discovery.visitedMinorCount(_monuments);
 
     final progression = _progression;
     final radarCount = progression != null && progression.perks.radar && position != null
@@ -307,7 +309,7 @@ class _MapScreenState extends State<MapScreen> {
         actions: [
           if (_monuments.isNotEmpty)
             Tooltip(
-              message: 'Odwiedzone zabytki główne · odkryte perełki',
+              message: 'Odwiedzone: zabytki główne · ukryte perełki',
               child: Chip(
                 label: Row(
                   mainAxisSize: MainAxisSize.min,

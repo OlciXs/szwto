@@ -86,10 +86,10 @@ class _CollectionScreenState extends State<CollectionScreen> {
         return false;
       }
 
-      // Filtr wyszukiwarki
+      // Filtr wyszukiwarki (nieodkrytych nie szukamy po nazwie – karta ją ukrywa)
       if (_searchQuery.isNotEmpty) {
         final query = _searchQuery.toLowerCase();
-        final matchName = m.name.toLowerCase().contains(query);
+        final matchName = m.visited && m.name.toLowerCase().contains(query);
         final matchCat = m.category.label.toLowerCase().contains(query);
         if (!matchName && !matchCat) return false;
       }
@@ -276,7 +276,11 @@ class _CollectionScreenState extends State<CollectionScreen> {
                         final monument = filtered[index];
                         return MonumentCardWidget(
                           monument: monument,
-                          onTap: () => CardPreviewDialog.show(context, monument),
+                          onTap: () async {
+                            await CardPreviewDialog.show(context, monument);
+                            // zabytek mógł zostać odznaczony na ekranie szczegółów
+                            if (mounted) _loadData();
+                          },
                         );
                       },
                       childCount: filtered.length,

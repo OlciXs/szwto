@@ -9,6 +9,7 @@ import '../achievements/achievement_style.dart';
 import '../achievements/achievements_screen.dart';
 import '../achievements/widgets/level_card.dart';
 import '../achievements/widgets/rewards_dialog.dart';
+import '../friends/friends_screen.dart';
 import '../showcase/widgets/showcase_section.dart';
 import '../users/users_api.dart';
 import 'models/user_profile.dart';
@@ -53,43 +54,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   /// Zmiana nazwy gracza (widocznej w rankingu, komentarzach i profilu publicznym).
   Future<void> _editDisplayName() async {
-    final controller = TextEditingController(text: _profile?.displayName ?? '');
-    String? error;
     final saved = await showDialog<bool>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Nazwa gracza'),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            maxLength: 24,
-            decoration: InputDecoration(
-              helperText: '3–24 znaki: litery, cyfry, _ . -',
-              errorText: error,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Anuluj'),
-            ),
-            FilledButton(
-              onPressed: () async {
-                try {
-                  await UsersApi.instance.updateDisplayName(controller.text);
-                  if (context.mounted) Navigator.pop(context, true);
-                } on ApiException catch (e) {
-                  setDialogState(() => error = e.message);
-                }
-              },
-              child: const Text('Zapisz'),
-            ),
-          ],
-        ),
-      ),
+      builder: (_) => _EditNameDialog(initialName: _profile?.displayName ?? ''),
     );
-    controller.dispose();
     if (saved == true) await _loadProfile();
   }
 
@@ -131,6 +99,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 12),
           ],
           _AchievementsPreview(profile: profile, onChanged: _loadProfile),
+          const SizedBox(height: 12),
+          _FriendsCard(profile: profile, onChanged: _loadProfile),
           const SizedBox(height: 12),
           _StatsCard(profile: profile, colorScheme: colorScheme),
           const SizedBox(height: 24),
@@ -471,6 +441,83 @@ class _RecentVisitTile extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
+// Zmiana nazwy gracza
+// ---------------------------------------------------------------------------
+
+/// Okno sam zarządza kontrolerem pola: niszczy go dopiero, gdy samo zniknie
+/// (wcześniej kontroler był niszczony w trakcie animacji zamykania -> crash).
+class _EditNameDialog extends StatefulWidget {
+  const _EditNameDialog({required this.initialName});
+
+  final String initialName;
+
+  @override
+  State<_EditNameDialog> createState() => _EditNameDialogState();
+}
+
+class _EditNameDialogState extends State<_EditNameDialog> {
+  late final _controller = TextEditingController(text: widget.initialName);
+  String? _error;
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await UsersApi.instance.updateDisplayName(_controller.text);
+      if (mounted) Navigator.pop(context, true);
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Nazwa gracza'),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        maxLength: 24,
+        enabled: !_saving,
+        onSubmitted: (_) => _saving ? null : _save(),
+        decoration: InputDecoration(
+          helperText: '3–24 znaki: litery, cyfry, _ . -',
+          errorText: _error,
+          errorMaxLines: 3,
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _saving ? null : () => Navigator.pop(context, false),
+          child: const Text('Anuluj'),
+        ),
+        FilledButton(
+          onPressed: _saving ? null : _save,
+          child: _saving
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Zapisz'),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Osiągnięcia – podgląd ostatnich + przejście do pełnej listy (tor B)
 // ---------------------------------------------------------------------------
 
@@ -528,6 +575,51 @@ class _AchievementsPreview extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Znajomi – kod gracza, liczba znajomych i oczekujące zaproszenia
+// ---------------------------------------------------------------------------
+
+class _FriendsCard extends StatelessWidget {
+  const _FriendsCard({required this.profile, required this.onChanged});
+
+  final UserProfile profile;
+  final Future<void> Function() onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final pending = profile.incomingRequests;
+    final code = profile.friendCode;
+    return Card(
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        leading: Badge(
+          isLabelVisible: pending > 0,
+          label: Text('$pending'),
+          child: Icon(Icons.group, color: theme.colorScheme.primary),
+        ),
+        title: Text(
+          'Znajomi (${profile.friendsCount})',
+          style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        subtitle: Text(
+          [
+            if (code != null) 'Twój kod: #$code',
+            if (pending > 0) 'nowe zaproszenia: $pending',
+          ].join(' · '),
+        ),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () async {
+          await Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const FriendsScreen()),
+          );
+          await onChanged();
+        },
       ),
     );
   }

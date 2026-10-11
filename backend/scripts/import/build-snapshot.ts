@@ -7,12 +7,13 @@
  */
 import { mkdirSync, writeFileSync } from 'fs';
 import { dirname } from 'path';
-import { MonumentSource } from '@prisma/client';
+import { MonumentCategory, MonumentSource, Rarity } from '@prisma/client';
 import { categorize, isExcluded } from './category-map';
 import {
   assignRarities,
   eraFor,
   generatedDescription,
+  generatedFunFact,
   heritageLevelFor,
   isMajorRarity,
   parseBuilt,
@@ -56,6 +57,56 @@ const distanceMeters = (
  * Zabezpieczenie przed duplikatami: ten sam artykuł Wikipedii albo ta sama nazwa
  * w promieniu 150 m. Zostaje obiekt bardziej rozpoznawalny (więcej Wikipedii).
  */
+/** Rzadkie kamienice zostają tylko z porządnym opisem z Wikipedii (znaki). */
+const TENEMENT_MIN_DESCRIPTION = 900;
+/** …i gdy w promieniu tylu metrów nie ma już innej zachowanej kamienicy. */
+const TENEMENT_MIN_DISTANCE = 80;
+
+/**
+ * Decyzja zespołu: kamienice stały „w rzędzie” i zaśmiecały mapę. Zostają:
+ *  - epickie i legendarne,
+ *  - rzadkie z bogatym opisem, które nie sąsiadują z inną zachowaną kamienicą.
+ * Pospolite kamienice odpadają.
+ */
+function pruneTenements<
+  T extends {
+    category: MonumentCategory;
+    externalId: string;
+    fame: number;
+    item: { latitude: number; longitude: number };
+    article: { description: string } | null;
+  },
+>(items: T[], rarities: Map<string, Rarity>, onSkip: () => void): T[] {
+  const others = items.filter((m) => m.category !== MonumentCategory.KAMIENICA);
+  const tenements = items.filter((m) => m.category === MonumentCategory.KAMIENICA);
+  const rarityOf = (m: T) => rarities.get(m.externalId)!;
+
+  const keptTenements = tenements.filter(
+    (m) => rarityOf(m) === Rarity.EPIC || rarityOf(m) === Rarity.LEGENDARY,
+  );
+  const candidates = tenements
+    .filter(
+      (m) =>
+        rarityOf(m) === Rarity.RARE &&
+        (m.article?.description.length ?? 0) >= TENEMENT_MIN_DESCRIPTION,
+    )
+    .sort(
+      (a, b) =>
+        b.fame - a.fame ||
+        (b.article?.description.length ?? 0) - (a.article?.description.length ?? 0),
+    );
+  for (const m of candidates) {
+    const tooClose = keptTenements.some(
+      (k) => distanceMeters(k.item, m.item) < TENEMENT_MIN_DISTANCE,
+    );
+    if (!tooClose) keptTenements.push(m);
+  }
+
+  const keptIds = new Set(keptTenements.map((m) => m.externalId));
+  tenements.filter((m) => !keptIds.has(m.externalId)).forEach(onSkip);
+  return [...others, ...keptTenements];
+}
+
 function removeDuplicates<T extends WikidataItem & { wikipediaTitle: string }>(
   items: T[],
   onDuplicate: () => void,
@@ -135,9 +186,12 @@ async function main() {
     };
   });
 
+  // Rzadkość liczymy na pełnym zbiorze – usunięcie kamienic nie zmienia,
+  // które zabytki są legendarne/epickie.
   const rarities = assignRarities(base);
+  const pruned = pruneTenements(base, rarities, () => skip('kamienica (mało istotna)'));
 
-  const monuments: SnapshotMonument[] = base
+  const monuments: SnapshotMonument[] = pruned
     .map((m) => {
       const rarity = rarities.get(m.externalId)!;
       const generated = generatedDescription({
@@ -153,6 +207,14 @@ async function main() {
         name: m.name,
         summary: m.article?.summary ?? generated,
         description: m.article?.description ?? generated,
+        funFact:
+          m.article?.funFact ??
+          generatedFunFact({
+            builtYear: m.builtYear,
+            builtLabel: m.builtLabel,
+            fame: m.fame,
+            heritageLevel: m.heritageLevel,
+          }),
         descriptionSource: m.article ? 'wikipedia' : 'generated',
         isMajor: isMajorRarity(rarity),
         category: m.category,
@@ -194,6 +256,9 @@ async function main() {
   console.log('Kategorie:', countBy(monuments, (m) => m.category));
   console.log('Rarity:', countBy(monuments, (m) => m.rarity));
   console.log('Epoki:', countBy(monuments, (m) => m.era));
+  console.log(
+    `Ciekawostki: ${monuments.filter((m) => m.funFact).length}/${monuments.length}`,
+  );
   const fromWiki = monuments.filter((m) => m.descriptionSource === 'wikipedia');
   const avgLength = Math.round(
     fromWiki.reduce((sum, m) => sum + (m.description?.length ?? 0), 0) /

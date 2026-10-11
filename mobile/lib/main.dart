@@ -4,6 +4,7 @@ import 'app_shell.dart';
 import 'core/api_client.dart';
 import 'core/demo_mode.dart';
 import 'core/routes.dart';
+import 'core/scroll_behavior.dart';
 import 'features/auth/login_screen.dart';
 
 Future<void> main() async {
@@ -33,6 +34,7 @@ class ZabytkiApp extends StatelessWidget {
       title: 'Odkrywca Zabytków',
       debugShowCheckedModeBanner: false,
       navigatorKey: navigatorKey,
+      scrollBehavior: const AppScrollBehavior(),
       theme: ThemeData(
         colorSchemeSeed: Colors.teal,
         useMaterial3: true,
