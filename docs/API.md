@@ -49,7 +49,8 @@ Dopisując endpoint, dodaj wiersz w tabeli swojego toru.
 {
   "teaser": "Ratusz · XIII wiek",
   "summary": "Stary Ratusz we Wrocławiu – późnogotycki budynek…",  // zajawka, widoczna zawsze
-  "description": null,              // długi opis (akapity "\n\n") dopiero po wizycie (#6)
+  "description": null,              // opis (maks. 5 akapitów, "\n\n") dopiero po wizycie (#6)
+  "funFact": null,                  // ciekawostka – też dopiero po wizycie
   "descriptionLocked": true,
   "descriptionSource": "wikipedia", // lub "generated"
   "address": "Rynek Ratusz 1 50-116 Wrocław",

@@ -53,43 +53,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   /// Zmiana nazwy gracza (widocznej w rankingu, komentarzach i profilu publicznym).
   Future<void> _editDisplayName() async {
-    final controller = TextEditingController(text: _profile?.displayName ?? '');
-    String? error;
     final saved = await showDialog<bool>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Nazwa gracza'),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            maxLength: 24,
-            decoration: InputDecoration(
-              helperText: '3–24 znaki: litery, cyfry, _ . -',
-              errorText: error,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Anuluj'),
-            ),
-            FilledButton(
-              onPressed: () async {
-                try {
-                  await UsersApi.instance.updateDisplayName(controller.text);
-                  if (context.mounted) Navigator.pop(context, true);
-                } on ApiException catch (e) {
-                  setDialogState(() => error = e.message);
-                }
-              },
-              child: const Text('Zapisz'),
-            ),
-          ],
-        ),
-      ),
+      builder: (_) => _EditNameDialog(initialName: _profile?.displayName ?? ''),
     );
-    controller.dispose();
     if (saved == true) await _loadProfile();
   }
 
@@ -466,6 +433,83 @@ class _RecentVisitTile extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Zmiana nazwy gracza
+// ---------------------------------------------------------------------------
+
+/// Okno sam zarządza kontrolerem pola: niszczy go dopiero, gdy samo zniknie
+/// (wcześniej kontroler był niszczony w trakcie animacji zamykania -> crash).
+class _EditNameDialog extends StatefulWidget {
+  const _EditNameDialog({required this.initialName});
+
+  final String initialName;
+
+  @override
+  State<_EditNameDialog> createState() => _EditNameDialogState();
+}
+
+class _EditNameDialogState extends State<_EditNameDialog> {
+  late final _controller = TextEditingController(text: widget.initialName);
+  String? _error;
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await UsersApi.instance.updateDisplayName(_controller.text);
+      if (mounted) Navigator.pop(context, true);
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Nazwa gracza'),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        maxLength: 24,
+        enabled: !_saving,
+        onSubmitted: (_) => _saving ? null : _save(),
+        decoration: InputDecoration(
+          helperText: '3–24 znaki: litery, cyfry, _ . -',
+          errorText: _error,
+          errorMaxLines: 3,
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _saving ? null : () => Navigator.pop(context, false),
+          child: const Text('Anuluj'),
+        ),
+        FilledButton(
+          onPressed: _saving ? null : _save,
+          child: _saving
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Zapisz'),
+        ),
+      ],
     );
   }
 }

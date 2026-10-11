@@ -13,6 +13,7 @@ import {
   assignRarities,
   eraFor,
   generatedDescription,
+  generatedFunFact,
   heritageLevelFor,
   isMajorRarity,
   parseBuilt,
@@ -153,6 +154,14 @@ async function main() {
         name: m.name,
         summary: m.article?.summary ?? generated,
         description: m.article?.description ?? generated,
+        funFact:
+          m.article?.funFact ??
+          generatedFunFact({
+            builtYear: m.builtYear,
+            builtLabel: m.builtLabel,
+            fame: m.fame,
+            heritageLevel: m.heritageLevel,
+          }),
         descriptionSource: m.article ? 'wikipedia' : 'generated',
         isMajor: isMajorRarity(rarity),
         category: m.category,
@@ -194,6 +203,9 @@ async function main() {
   console.log('Kategorie:', countBy(monuments, (m) => m.category));
   console.log('Rarity:', countBy(monuments, (m) => m.rarity));
   console.log('Epoki:', countBy(monuments, (m) => m.era));
+  console.log(
+    `Ciekawostki: ${monuments.filter((m) => m.funFact).length}/${monuments.length}`,
+  );
   const fromWiki = monuments.filter((m) => m.descriptionSource === 'wikipedia');
   const avgLength = Math.round(
     fromWiki.reduce((sum, m) => sum + (m.description?.length ?? 0), 0) /

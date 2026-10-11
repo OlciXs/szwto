@@ -85,8 +85,10 @@ model Monument {
   name              String
   /// Zajawka (1–2 zdania) – widoczna przed odwiedzeniem
   summary           String?
-  /// Długi opis historyczny – pokazywany po odwiedzeniu
+  /// Długi opis historyczny (maks. 5 akapitów) – pokazywany po odwiedzeniu
   description       String?
+  /// Ciekawostka – pokazywana po odwiedzeniu
+  funFact           String?
   /// "wikipedia" | "generated"
   descriptionSource String?
   category          MonumentCategory

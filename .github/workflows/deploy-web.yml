@@ -1,0 +1,56 @@
+# Automatyczna publikacja wersji web na GitHub Pages:
+# https://olcixs.github.io/szwto/
+# Po każdym pushu na main (zmiany w mobile/) GitHub buduje aplikację Flutter
+# i podmienia zawartość gałęzi gh-pages. Ręcznie: zakładka Actions -> "Run workflow".
+name: Deploy web (GitHub Pages)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/deploy-web.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deploy-web
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.7
+          cache: true
+
+      - name: Zależności
+        run: flutter pub get
+
+      - name: Testy
+        run: flutter test
+
+      # Bez --dart-define aplikacja łączy się z produkcyjnym backendem (Render).
+      # --base-href: strona działa pod adresem /szwto/, nie w katalogu głównym domeny.
+      - name: Build web
+        run: flutter build web --release --base-href /szwto/
+
+      - name: Publikacja na gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./mobile/build/web
+          publish_branch: gh-pages
+          # czysta gałąź przy każdym wdrożeniu (bez śmieci z ręcznych uploadów)
+          force_orphan: true
+          commit_message: 'Deploy web: ${{ github.sha }}'

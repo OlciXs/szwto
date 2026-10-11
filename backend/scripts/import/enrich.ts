@@ -222,6 +222,31 @@ export function visitRadiusFor(category: MonumentCategory, typeLabels: string[])
   return base;
 }
 
+// ---------- Ciekawostka zastępcza ----------
+
+/** Gdy w artykule nie ma dobrego zdania-ciekawostki – fakt z danych. */
+export function generatedFunFact(m: {
+  builtYear: number | null;
+  builtLabel: string | null;
+  fame: number;
+  heritageLevel: HeritageLevel;
+}): string | null {
+  const age = m.builtYear !== null ? new Date().getFullYear() - m.builtYear : 0;
+  if (m.heritageLevel === HeritageLevel.UNESCO) {
+    return 'To jedyny obiekt we Wrocławiu wpisany na Listę Światowego Dziedzictwa UNESCO.';
+  }
+  if (age >= 300) {
+    return `Ma już ok. ${Math.round(age / 10) * 10} lat – jego historia sięga okresu: ${m.builtLabel}.`;
+  }
+  if (m.fame >= 5) {
+    return `O tym miejscu powstały artykuły w ${m.fame} wersjach językowych Wikipedii.`;
+  }
+  if (age >= 100) {
+    return `Ma już ponad ${Math.floor(age / 10) * 10} lat (${m.builtLabel}).`;
+  }
+  return null;
+}
+
 // ---------- Opis zastępczy ----------
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
