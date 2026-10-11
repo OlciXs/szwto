@@ -3,6 +3,9 @@ import 'package:zabytki_app/core/models/monument_category.dart';
 import 'package:zabytki_app/core/models/rarity.dart';
 import 'package:zabytki_app/features/achievements/models/achievement.dart';
 import 'package:zabytki_app/features/achievements/models/progression.dart';
+import 'package:zabytki_app/features/comments/models/comment.dart';
+import 'package:zabytki_app/features/showcase/models/showcase.dart';
+import 'package:zabytki_app/features/users/models/public_profile.dart';
 import 'package:zabytki_app/features/monuments/models/monument.dart';
 
 void main() {
@@ -131,5 +134,42 @@ void main() {
     expect(p.xpForLevel, 150);
     expect(p.perks.showcaseSlots, 2);
     expect(p.nextUnlockLevel, 4);
+  });
+
+  test('Showcase: miejsca puste, zajęte i zablokowane', () {
+    final showcase = Showcase.fromJson({
+      'unlockedSlots': 2,
+      'maxSlots': 5,
+      'slots': [
+        {'slot': 0, 'locked': false, 'unlockLevel': 1, 'monument': {'id': 7, 'name': 'Ratusz', 'category': 'PUBLICZNY', 'rarity': 'LEGENDARY'}},
+        {'slot': 1, 'locked': false, 'unlockLevel': 3, 'monument': null},
+        {'slot': 4, 'locked': true, 'unlockLevel': 15, 'monument': null},
+      ],
+    });
+    expect(showcase.slots.first.monument?.rarity, Rarity.legendary);
+    expect(showcase.slots.last.locked, isTrue);
+    expect(showcase.isEmpty, isFalse);
+  });
+
+  test('Komentarze i ranking – bez e-maila, z poziomem autora', () {
+    final page = CommentsPage.fromJson({
+      'total': 1, 'visited': false, 'visitRadius': 75, 'hasMore': false,
+      'comments': [
+        {'id': 1, 'body': 'Piękny gotyk', 'createdAt': '2026-10-11T10:00:00.000Z', 'isMine': false,
+         'author': {'id': 2, 'displayName': 'Ola', 'level': 4, 'rankIndex': 1, 'rankName': 'Spacerowicz'}},
+      ],
+    });
+    expect(page.visited, isFalse);
+    expect(page.comments.single.author.level, 4);
+
+    final board = Leaderboard.fromJson({
+      'totalPlayers': 2,
+      'entries': [
+        {'position': 1, 'id': 2, 'displayName': 'Ola', 'totalXp': 300, 'level': 4, 'isMe': false},
+      ],
+      'me': {'position': 2, 'id': 3, 'displayName': 'Ja', 'totalXp': 0, 'isMe': true},
+    });
+    expect(board.me?.position, 2);
+    expect(board.entries.single.isMe, isFalse);
   });
 }

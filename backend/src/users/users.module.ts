@@ -1,12 +1,14 @@
 import { Module } from '@nestjs/common';
+import { AchievementsModule } from '../achievements/achievements.module';
+import { ProgressionModule } from '../progression/progression.module';
+import { ShowcaseModule } from '../showcase/showcase.module';
+import { UsersController } from './users.controller';
+import { UsersService } from './users.service';
 
-/**
- * Tor D – publiczne profile i ranking (issues #4, #6).
- *
- * Plan:
- *   - GET /users/:id – publiczny profil (displayName, poziom, gablotka, achievementy; BEZ e-maila)
- *   - GET /users/leaderboard – ranking po XP / liczbie odwiedzin
- *   - PATCH /users/me – zmiana displayName
- */
-@Module({})
+/** Tor D – publiczne profile, ranking, zmiana nazwy gracza. */
+@Module({
+  imports: [ProgressionModule, AchievementsModule, ShowcaseModule],
+  controllers: [UsersController],
+  providers: [UsersService],
+})
 export class UsersModule {}

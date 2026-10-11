@@ -2,6 +2,7 @@ import '../../../core/models/monument_category.dart';
 import '../../../core/models/rarity.dart';
 import '../../achievements/models/achievement.dart';
 import '../../achievements/models/progression.dart';
+import '../../showcase/models/showcase.dart';
 
 class UserProfile {
   final int id;
@@ -18,6 +19,9 @@ class UserProfile {
   final int achievementsTotal;
   final List<AchievementBadge> recentAchievements;
 
+  /// Tor D – gablotka (null przy starszym backendzie).
+  final Showcase? showcase;
+
   UserProfile({
     required this.id,
     required this.email,
@@ -30,11 +34,13 @@ class UserProfile {
     this.achievementsUnlocked = 0,
     this.achievementsTotal = 0,
     this.recentAchievements = const [],
+    this.showcase,
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
     final progression = json['progression'] as Map<String, dynamic>?;
     final achievements = json['achievements'] as Map<String, dynamic>? ?? const {};
+    final showcase = json['showcase'] as Map<String, dynamic>?;
     return UserProfile(
       id: json['id'] as int,
       email: json['email'] as String,
@@ -51,6 +57,7 @@ class UserProfile {
       recentAchievements: (achievements['recent'] as List<dynamic>? ?? const [])
           .map((a) => AchievementBadge.fromJson(a as Map<String, dynamic>))
           .toList(),
+      showcase: showcase != null ? Showcase.fromJson(showcase) : null,
     );
   }
 

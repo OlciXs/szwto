@@ -9,6 +9,8 @@ import '../achievements/achievement_style.dart';
 import '../achievements/achievements_screen.dart';
 import '../achievements/widgets/level_card.dart';
 import '../achievements/widgets/rewards_dialog.dart';
+import '../showcase/widgets/showcase_section.dart';
+import '../users/users_api.dart';
 import 'models/user_profile.dart';
 import 'profile_api.dart';
 
@@ -49,6 +51,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  /// Zmiana nazwy gracza (widocznej w rankingu, komentarzach i profilu publicznym).
+  Future<void> _editDisplayName() async {
+    final controller = TextEditingController(text: _profile?.displayName ?? '');
+    String? error;
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Nazwa gracza'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            maxLength: 24,
+            decoration: InputDecoration(
+              helperText: '3–24 znaki: litery, cyfry, _ . -',
+              errorText: error,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Anuluj'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                try {
+                  await UsersApi.instance.updateDisplayName(controller.text);
+                  if (context.mounted) Navigator.pop(context, true);
+                } on ApiException catch (e) {
+                  setDialogState(() => error = e.message);
+                }
+              },
+              child: const Text('Zapisz'),
+            ),
+          ],
+        ),
+      ),
+    );
+    controller.dispose();
+    if (saved == true) await _loadProfile();
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -76,7 +120,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _ProfileHeader(profile: profile, colorScheme: colorScheme),
+          _ProfileHeader(
+            profile: profile,
+            colorScheme: colorScheme,
+            onEditName: _editDisplayName,
+          ),
           const SizedBox(height: 24),
           if (profile.progression != null) ...[
             LevelCard(progression: profile.progression!),
@@ -132,14 +180,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ],
 
-          // ---------- Sekcje innych torów ----------
-          const SizedBox(height: 24),
-          _FutureSectionCard(
-            icon: Icons.workspace_premium_outlined,
-            title: 'Gablotka',
-            subtitle: 'Wkrótce – wystaw swoje najlepsze karty dla innych graczy.',
-            colorScheme: colorScheme,
-          ),
+          // ---------- Gablotka (tor D) ----------
+          if (profile.showcase != null) ...[
+            const SizedBox(height: 24),
+            ShowcaseSection(
+              showcase: profile.showcase!,
+              editable: true,
+              onChanged: _loadProfile,
+            ),
+          ],
 
           const SizedBox(height: 24),
           const _DemoModeCard(),
@@ -167,10 +216,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
 // ---------------------------------------------------------------------------
 
 class _ProfileHeader extends StatelessWidget {
-  const _ProfileHeader({required this.profile, required this.colorScheme});
+  const _ProfileHeader({
+    required this.profile,
+    required this.colorScheme,
+    required this.onEditName,
+  });
 
   final UserProfile profile;
   final ColorScheme colorScheme;
+  final VoidCallback onEditName;
 
   String get _initials {
     final name = profile.displayName.isNotEmpty
@@ -223,11 +277,25 @@ class _ProfileHeader extends StatelessWidget {
           ),
         ],
         const SizedBox(height: 12),
-        Text(
-          profile.displayName,
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const SizedBox(width: 40),
+            Flexible(
+              child: Text(
+                profile.displayName,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.edit_outlined, size: 20),
+              tooltip: 'Zmień nazwę gracza',
+              onPressed: onEditName,
+            ),
+          ],
         ),
         const SizedBox(height: 2),
         Text(
@@ -488,56 +556,6 @@ class _DemoModeCard extends StatelessWidget {
           ),
           value: enabled,
           onChanged: demo.setEnabled,
-        ),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Karta sekcji „wkrótce"
-// ---------------------------------------------------------------------------
-
-class _FutureSectionCard extends StatelessWidget {
-  const _FutureSectionCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.colorScheme,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final ColorScheme colorScheme;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Card(
-      color: colorScheme.surfaceContainerLow,
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: colorScheme.primaryContainer.withAlpha(128),
-          child: Icon(icon, color: colorScheme.primary),
-        ),
-        title: Text(
-          title,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        subtitle: Text(
-          subtitle,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: colorScheme.onSurfaceVariant,
-          ),
-        ),
-        trailing: Icon(
-          Icons.lock_outline,
-          color: colorScheme.onSurfaceVariant.withAlpha(128),
-          size: 20,
         ),
       ),
     );

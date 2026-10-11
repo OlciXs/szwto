@@ -91,7 +91,30 @@ class _MonumentDetailScreenState extends State<MonumentDetailScreen> {
         SliverAppBar(
           pinned: true,
           expandedHeight: image != null ? 260 : null,
-          title: Text(widget.monument.name, overflow: TextOverflow.ellipsis),
+          // Na zdjęciu: biały tekst i ikony na ciemnym gradiencie; po zwinięciu
+          // pasek w kolorze motywu – w obu stanach tytuł i „Wstecz” są czytelne.
+          backgroundColor: image != null ? scheme.primary : null,
+          foregroundColor: image != null ? Colors.white : null,
+          leading: image == null
+              ? null
+              : const Padding(
+                  padding: EdgeInsets.all(8),
+                  child: Material(
+                    color: Colors.black38,
+                    shape: CircleBorder(),
+                    child: BackButton(color: Colors.white),
+                  ),
+                ),
+          title: Text(
+            widget.monument.name,
+            overflow: TextOverflow.ellipsis,
+            style: image == null
+                ? null
+                : const TextStyle(
+                    color: Colors.white,
+                    shadows: [Shadow(blurRadius: 6, color: Colors.black87)],
+                  ),
+          ),
           flexibleSpace: image == null
               ? null
               : FlexibleSpaceBar(
@@ -108,8 +131,9 @@ class _MonumentDetailScreenState extends State<MonumentDetailScreen> {
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             begin: Alignment.topCenter,
-                            end: Alignment.center,
-                            colors: [Colors.black54, Colors.transparent],
+                            end: Alignment.bottomCenter,
+                            stops: [0, 0.45, 1],
+                            colors: [Colors.black87, Colors.transparent, Colors.black26],
                           ),
                         ),
                       ),
@@ -200,11 +224,25 @@ class _MonumentDetailScreenState extends State<MonumentDetailScreen> {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
+                  // Wikipedia dopiero po wizycie – inaczej omijałaby blokadę historii
+                  // (backend i tak nie wysyła linku przed wizytą).
                   if (details.wikipediaUrl != null)
                     OutlinedButton.icon(
                       icon: const Icon(Icons.menu_book_outlined),
                       label: const Text('Czytaj na Wikipedii'),
                       onPressed: () => _openWikipedia(details.wikipediaUrl!),
+                    )
+                  else if (details.descriptionLocked)
+                    const OutlinedButton(
+                      onPressed: null,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.lock_outline, size: 18),
+                          SizedBox(width: 8),
+                          Text('Wikipedia – po odwiedzeniu'),
+                        ],
+                      ),
                     ),
                   if (image != null)
                     TextButton.icon(
@@ -215,7 +253,7 @@ class _MonumentDetailScreenState extends State<MonumentDetailScreen> {
                 ],
               ),
               const SizedBox(height: 24),
-              CommentsSection(monumentId: widget.monument.id),
+              CommentsSection(monument: widget.monument),
             ],
           ),
         ),

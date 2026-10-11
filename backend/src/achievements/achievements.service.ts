@@ -63,7 +63,7 @@ export class AchievementsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async computeStats(userId: number): Promise<PlayerStats> {
-    const [visits, wikiArticles] = await Promise.all([
+    const [visits, wikiArticles, commentsCount, showcaseCount] = await Promise.all([
       this.prisma.userVisited.findMany({
         where: { userId },
         select: {
@@ -86,6 +86,8 @@ export class AchievementsService {
         distinct: ['monumentId'],
         select: { monumentId: true },
       }),
+      this.prisma.comment.count({ where: { userId } }),
+      this.prisma.showcaseSlot.count({ where: { userId } }),
     ]);
 
     const byCategory: Partial<Record<MonumentCategory, number>> = {};
@@ -107,6 +109,8 @@ export class AchievementsService {
       nightVisits: 0,
       morningVisits: 0,
       wikipediaArticlesRead: wikiArticles.length,
+      commentsCount,
+      showcaseCount,
     };
 
     for (const { visitedAt, monument: m } of visits) {

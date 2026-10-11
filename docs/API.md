@@ -17,6 +17,15 @@ Dopisując endpoint, dodaj wiersz w tabeli swojego toru.
 | GET | `/progression` | `{ totalXp, level, rank: {index, name}, levelStartXp, nextLevelXp, progress, perks: {discoveryRadius, showcaseSlots, radar}, nextUnlock }` |
 | GET | `/achievements` | `{ unlockedCount, total, achievements: [{ id, name, description, icon, group, groupLabel, tier, xp, secret, target, progress, unlocked, unlockedAt }] }` – sekretne nieodblokowane mają `name: "???"` |
 | POST | `/events` | `{ type: "WIKIPEDIA_OPENED", monumentId }` → `{ recorded, rewards }` (może odblokować „Mola książkowego”) |
+| GET | `/users/:id` | publiczny profil **bez e-maila**: `displayName, level, rank, totalXp, visitedCount, achievements, showcase, isMe` |
+| GET | `/users/leaderboard` | `{ totalPlayers, entries: [{ position, id, displayName, totalXp, visitedCount, level, rankIndex, rankName, isMe }], me }` (top 50 + pozycja oglądającego) |
+| PATCH | `/users/me` | `{ displayName }` → `409`, gdy nazwa zajęta |
+| GET | `/showcase` | moja gablotka: `{ unlockedSlots, maxSlots, slots: [{ slot, locked, unlockLevel, monument: MonumentCard | null }] }` |
+| PUT | `/showcase/:slot` | `{ monumentId }` → `{ showcase, rewards }`; tylko odwiedzone (`400`), tylko odblokowane miejsca (`403`), duplikat = przeniesienie |
+| DELETE | `/showcase/:slot` | → `{ showcase }` |
+| GET | `/monuments/:id/comments?before=` | `{ total, visited, visitRadius, hasMore, comments: [{ id, body, createdAt, isMine, author: { id, displayName, level, rankIndex, rankName } }] }` |
+| POST | `/monuments/:id/comments` | `{ body ≤ 500, latitude, longitude }` → `{ id, rewards }`; **tylko po wizycie I na miejscu** (`403`), maks. 1 na 10 s (`429`) |
+| DELETE | `/comments/:id` | tylko własne (`403`) |
 
 ### MonumentListItem
 ```jsonc
@@ -49,7 +58,8 @@ Dopisując endpoint, dodaj wiersz w tabeli swojego toru.
   "registerNumber": "A/2908/135",
   "wikipediaUrl": "https://pl.wikipedia.org/wiki/...",
   "source": "WIKIDATA", "externalId": "wd:Q910225",
-  "visitorsCount": 3
+  "visitorsCount": 3,
+  "commentsCount": 2               // tor D
 }
 ```
 
@@ -76,11 +86,5 @@ Dopisując endpoint, dodaj wiersz w tabeli swojego toru.
 
 | Tor | Metoda | Ścieżka | Opis |
 |---|---|---|---|
-| D | GET | `/users/:id` | publiczny profil (bez e-maila): displayName, poziom, gablotka, achievementy |
-| D | GET | `/users/leaderboard` | ranking |
-| D | PATCH | `/users/me` | `{ displayName }` |
-| D | PUT / DELETE | `/showcase/:slot` | `{ monumentId }` – tylko odwiedzone |
-| D | GET / POST | `/monuments/:id/comments` | lista / dodanie (`{ body ≤ 500 }`, tylko po wizycie) |
-| D | DELETE | `/comments/:id` | tylko własne |
 | E | GET | `/game/round` | runda solo |
 | E | POST | `/duels`, `/duels/:code/join`, `/duels/:code/answers` | pojedynek asynchroniczny |

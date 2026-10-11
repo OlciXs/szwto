@@ -60,6 +60,13 @@ class ApiClient {
     await prefs.setString(_displayNameKey, displayName);
   }
 
+  /// Po zmianie nazwy gracza (PATCH /users/me).
+  Future<void> updateDisplayName(String displayName) async {
+    this.displayName = displayName;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_displayNameKey, displayName);
+  }
+
   Future<void> clearSession() async {
     _token = null;
     email = null;

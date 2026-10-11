@@ -28,10 +28,14 @@ export class MonumentsService {
       throw new NotFoundException('Nie znaleziono zabytku');
     }
 
-    const visitorsCount = await this.prisma.userVisited.count({
-      where: { monumentId: id },
-    });
+    const [visitorsCount, commentsCount] = await Promise.all([
+      this.prisma.userVisited.count({ where: { monumentId: id } }),
+      this.prisma.comment.count({ where: { monumentId: id } }),
+    ]);
     const { visitedBy, ...rest } = monument;
-    return toMonumentDetails(rest, visitedBy[0] ?? null, visitorsCount);
+    return {
+      ...toMonumentDetails(rest, visitedBy[0] ?? null, visitorsCount),
+      commentsCount, // tor D
+    };
   }
 }

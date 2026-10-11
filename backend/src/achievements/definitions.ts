@@ -43,6 +43,9 @@ export interface PlayerStats {
   nightVisits: number;
   morningVisits: number;
   wikipediaArticlesRead: number;
+  /** Tor D – społeczność */
+  commentsCount: number;
+  showcaseCount: number;
 }
 
 /** Liczności w bazie – żeby cele „wszystkie X” nie rozjechały się po imporcie. */
@@ -153,6 +156,9 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
   // ---------- Aktywność ----------
   ...tiered({ id: 'reader', name: 'Mól książkowy', describe: (n) => `Przeczytaj na Wikipedii o ${n} różnych zabytkach.`, icon: 'menu_book', group: 'AKTYWNOSC', progress: (s) => s.wikipediaArticlesRead }, [1, 5, 20]),
   { id: 'marathon', name: 'Maraton', description: 'Odwiedź 5 zabytków jednego dnia.', icon: 'bolt', group: 'AKTYWNOSC', xp: 75, target: 5, progress: (s) => s.maxVisitsPerDay },
+  { id: 'comment-1', name: 'Głos zabrany', description: 'Dodaj pierwszy komentarz pod zabytkiem.', icon: 'forum', group: 'AKTYWNOSC', xp: 50, target: 1, progress: (s) => s.commentsCount },
+  { id: 'comment-10', name: 'Przewodnik forum', description: 'Dodaj 10 komentarzy pod zabytkami.', icon: 'forum', group: 'AKTYWNOSC', xp: 100, target: 10, progress: (s) => s.commentsCount },
+  { id: 'curator', name: 'Kurator', description: 'Wystaw 3 zabytki w swojej gablotce.', icon: 'collections', group: 'AKTYWNOSC', xp: 75, target: 3, progress: (s) => s.showcaseCount },
 
   // ---------- Sekretne ----------
   { id: 'night-owl', name: 'Nocny marek', description: 'Odwiedź zabytek między 22:00 a 4:00.', icon: 'nightlight', group: 'SEKRETNE', xp: 50, secret: true, target: 1, progress: (s) => s.nightVisits },

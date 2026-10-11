@@ -32,6 +32,21 @@ export function toMonumentListItem(
   };
 }
 
+/** Karta zabytku – gablotka, profile, kolekcja (tor C). */
+export function toMonumentCard(
+  m: Pick<Monument, 'id' | 'name' | 'category' | 'rawType' | 'rarity' | 'imageFile' | 'builtLabel'>,
+) {
+  return {
+    id: m.id,
+    name: m.name,
+    category: m.category,
+    rawType: m.rawType,
+    rarity: m.rarity,
+    builtLabel: m.builtLabel,
+    thumbUrl: m.imageFile ? commonsThumbUrl(m.imageFile, 330) : null,
+  };
+}
+
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /** Typ i data powstania, np. „Ratusz · XIII wiek”. */
@@ -60,7 +75,8 @@ export function toMonumentDetails(
     image: commonsImage(m.imageFile),
     heritageLevel: m.heritageLevel,
     registerNumber: m.registerNumber,
-    wikipediaUrl: m.wikipediaUrl,
+    // Link do artykułu dopiero po wizycie – inaczej omijałby blokadę historii
+    wikipediaUrl: visited ? m.wikipediaUrl : null,
     source: m.source,
     externalId: m.externalId,
     visitorsCount,

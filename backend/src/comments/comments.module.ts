@@ -1,12 +1,16 @@
 import { Module } from '@nestjs/common';
+import { AchievementsModule } from '../achievements/achievements.module';
+import { ProgressionModule } from '../progression/progression.module';
+import { CommentsController } from './comments.controller';
+import { CommentsService } from './comments.service';
 
 /**
  * Tor D – mini forum przy zabytkach (issue #6).
- *
- * Plan:
- *   - GET /monuments/:id/comments (od najnowszych, z autorem: id, displayName)
- *   - POST /monuments/:id/comments { body ≤ 500 } – tylko gracze, którzy odwiedzili zabytek
- *   - DELETE /comments/:id – tylko własne
+ * Pisać mogą gracze, którzy odwiedzili zabytek I są teraz na miejscu.
  */
-@Module({})
+@Module({
+  imports: [ProgressionModule, AchievementsModule],
+  controllers: [CommentsController],
+  providers: [CommentsService],
+})
 export class CommentsModule {}
